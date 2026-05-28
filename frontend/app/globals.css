@@ -1,0 +1,14 @@
+@import '../design-system/tokens.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { font-size: 13px; }
+  body {
+    background-color: var(--surface-0);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}
