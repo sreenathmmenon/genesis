@@ -79,7 +79,7 @@ def compile_workflow_from_json(graph_json: dict[str, Any]):
 
         llm = get_llm(model_name)
 
-        async def _make_node(sp: str = system_prompt, lm=llm):
+        def _make_node(sp: str = system_prompt, lm=llm):
             async def _node(state: WorkflowState) -> dict[str, Any]:
                 from langchain_core.messages import HumanMessage, SystemMessage
                 last_input = str(state.get("input_data", {}))
@@ -89,7 +89,7 @@ def compile_workflow_from_json(graph_json: dict[str, Any]):
                 return {"intermediate_results": {sp[:20]: str(response.content)}}
             return _node
 
-        graph.add_node(node_id, await _make_node())
+        graph.add_node(node_id, _make_node())
 
     if not nodes:
         async def _noop(state: WorkflowState) -> dict[str, Any]:
