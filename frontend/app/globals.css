@@ -4,11 +4,38 @@
 @tailwind utilities;
 
 @layer base {
-  html { font-size: 13px; }
+  :root {
+    --font-sans: var(--font-syne, 'Geist', system-ui, sans-serif);
+    --font-mono: var(--font-mono, 'Geist Mono', 'DM Mono', monospace);
+
+    /* Genesis palette — used for inline styles in canvas/monitor components */
+    --color-bg:       #080808;
+    --color-surface:  #111111;
+    --color-card:     #111009;
+    --color-border:   #2a2925;
+    --color-accent:   #adff2f;
+    --color-accent2:  #ff4d00;
+    --color-muted:    #5a5750;
+    --color-white:    #f5f2ed;
+    --color-error:    #ff4444;
+    --color-warning:  #f5a623;
+    --color-info:     #3b9edd;
+    --color-success:  #22c55e;
+    --color-text-primary:   #ededed;
+    --color-text-secondary: #a1a1a1;
+    --color-text-tertiary:  #6e6e6e;
+  }
+
+  html {
+    font-size: 13px;
+    background: #080808;
+  }
+
   body {
-    background-color: var(--surface-0);
-    color: var(--text-primary);
+    background-color: var(--surface-0, #0a0a0a);
+    color: var(--text-primary, #ededed);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }

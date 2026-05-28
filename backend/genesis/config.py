@@ -38,5 +38,10 @@ class Settings(BaseSettings):
     environment: str = "development"
     log_level: str = "INFO"
 
+    @property
+    def sync_database_url(self) -> str:
+        """Synchronous URL for Alembic migrations (psycopg2 driver)."""
+        return self.database_url.replace("+asyncpg", "+psycopg2")
+
 
 settings = Settings()

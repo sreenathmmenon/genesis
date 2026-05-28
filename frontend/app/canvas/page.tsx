@@ -1,47 +1,109 @@
 'use client'
 
+import { useGenesisStore } from '@/lib/store'
+import { GenesisCanvas } from '@/components/canvas/GenesisCanvas'
+import { CanvasToolbar } from '@/components/canvas/CanvasToolbar'
+import { AgentConfigPanel } from '@/components/panels/AgentConfigPanel'
+import { MonitorPanel } from '@/components/monitor/MonitorPanel'
+
+const PANEL_STYLE: React.CSSProperties = {
+  background: '#111111',
+  borderRight: '1px solid #1a1a1a',
+  overflow: 'hidden',
+  display: 'flex',
+  flexDirection: 'column',
+  flexShrink: 0,
+}
+
 export default function CanvasPage() {
+  const selectedNodeId = useGenesisStore((s) => s.selectedNodeId)
+
   return (
-    <div className="layout-root">
-      <div className="layout-toolbar">
-        <span className="text-text-primary font-semibold tracking-tight text-md">Genesis</span>
-        <span className="badge badge--accent">Canvas</span>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        overflow: 'hidden',
+        background: '#0a0a0a',
+      }}
+    >
+      {/* Top toolbar */}
+      <div
+        style={{
+          height: 44,
+          minHeight: 44,
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 16px',
+          background: '#111111',
+          borderBottom: '1px solid #1a1a1a',
+          gap: 12,
+          flexShrink: 0,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: 'var(--font-syne, system-ui)',
+            fontWeight: 700,
+            fontSize: 14,
+            color: '#ededed',
+            letterSpacing: '-0.01em',
+          }}
+        >
+          Genesis
+        </span>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 500,
+            color: '#adff2f',
+            border: '1px solid #3a5500',
+            background: '#1a2400',
+            borderRadius: 3,
+            padding: '2px 6px',
+            letterSpacing: '0.04em',
+          }}
+        >
+          CANVAS
+        </span>
       </div>
-      <div className="layout-body">
-        <aside className="layout-left">
-          <div className="p-4 flex flex-col gap-3">
-            <span className="text-label">Agent Layers</span>
-            <div className="flex flex-col gap-1">
-              {(['meta', 'build', 'validate', 'ops'] as const).map((layer) => (
-                <div
-                  key={layer}
-                  className={`badge badge--${layer} w-fit`}
-                >
-                  {layer}
-                </div>
-              ))}
-            </div>
+
+      {/* Three-column body */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+
+        {/* Left: Agent config (280px) */}
+        <div style={{ ...PANEL_STYLE, width: 280 }}>
+          <AgentConfigPanel />
+        </div>
+
+        {/* Centre: Canvas + toolbar */}
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            position: 'relative',
+          }}
+        >
+          <CanvasToolbar />
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <GenesisCanvas />
           </div>
-        </aside>
-        <main className="layout-center flex items-center justify-center">
-          <div className="empty-state">
-            <div className="empty-state-icon">⬡</div>
-            <p className="empty-state-title">No workflow yet</p>
-            <p className="empty-state-body">
-              Send a message to your Telegram bot to start building a workflow.
-            </p>
-          </div>
-        </main>
-        <aside className="layout-right">
-          <div className="p-4 border-b border-border-0">
-            <span className="text-label">Monitor</span>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="empty-state" style={{ padding: 'var(--space-8)' }}>
-              <p className="empty-state-title">No activity</p>
-            </div>
-          </div>
-        </aside>
+        </div>
+
+        {/* Right: Monitor (320px) */}
+        <div
+          style={{
+            ...PANEL_STYLE,
+            width: 320,
+            borderRight: 'none',
+            borderLeft: '1px solid #1a1a1a',
+          }}
+        >
+          <MonitorPanel />
+        </div>
       </div>
     </div>
   )
