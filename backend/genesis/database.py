@@ -21,6 +21,9 @@ AsyncSessionLocal = async_sessionmaker(
     autoflush=False,
 )
 
+# Convenience alias used by background tasks that need their own session
+async_session = AsyncSessionLocal
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:

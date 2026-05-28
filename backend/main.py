@@ -18,9 +18,22 @@ async def lifespan(app: FastAPI):
     logger.info("Genesis starting up (env=%s)", settings.environment)
     await init_db()
     await redis_client.connect()
+
+    # Start Telegram bot (polling mode — no-op if token not set)
+    from genesis.channels.telegram import telegram_bridge
+    await telegram_bridge.setup()
+
+    # Start APScheduler for cron-triggered workflows
+    from genesis.utils.scheduler import start_scheduler
+    await start_scheduler()
+
     logger.info("Genesis ready")
     yield
+
     logger.info("Genesis shutting down")
+    from genesis.utils.scheduler import stop_scheduler
+    await stop_scheduler()
+    await telegram_bridge.teardown()
     await redis_client.disconnect()
     logger.info("Genesis stopped")
 
