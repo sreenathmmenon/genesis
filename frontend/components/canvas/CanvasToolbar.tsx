@@ -42,44 +42,37 @@ export function CanvasToolbar({ workflowName, onNewBuild }: CanvasToolbarProps) 
     <div className="layout-toolbar">
 
       {/* Brand */}
-      <span className="text-lg font-semibold text-accent tracking-tight flex-shrink-0">
+      <span style={{ fontWeight: 600, fontSize: 16, color: 'var(--accent)', letterSpacing: '-0.02em', flexShrink: 0 }}>
         Genesis
       </span>
 
-      <div className="w-px h-4 bg-border-1 flex-shrink-0" />
+      <div style={{ width: 1, height: 16, background: 'var(--border-1)', flexShrink: 0 }} />
 
       {/* Workflow name */}
-      <span className="text-sm font-mono text-text-tertiary truncate min-w-0">
+      <span style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
         {workflowName ?? 'New Workflow'}
       </span>
 
       {/* Build stage progress dots — only while building */}
       {isBuilding && stageIndex >= 0 && (
         <>
-          <div className="w-px h-4 bg-border-1 flex-shrink-0" />
-          <div className="flex items-center gap-2 overflow-hidden">
+          <div style={{ width: 1, height: 16, background: 'var(--border-1)', flexShrink: 0 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
             {BUILD_STAGES.map((stage, i) => (
-              <div key={stage} className="flex items-center gap-1.5 flex-shrink-0">
-                <span
-                  className={[
-                    'w-1.5 h-1.5 rounded-full flex-shrink-0 transition-colors duration-normal',
-                    i < stageIndex
-                      ? 'bg-accent'
-                      : i === stageIndex
-                        ? 'bg-accent animate-pulse-subtle'
-                        : 'bg-border-2',
-                  ].join(' ')}
-                />
-                <span
-                  className={[
-                    'text-xs',
-                    i === stageIndex ? 'text-text-primary' : 'text-text-tertiary',
-                  ].join(' ')}
-                >
+              <div key={stage} style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                <span style={{
+                  width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                  background: i <= stageIndex ? 'var(--accent)' : 'var(--border-2)',
+                  opacity: i === stageIndex ? 1 : 0.7,
+                }} />
+                <span style={{
+                  fontSize: 12,
+                  color: i === stageIndex ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                }}>
                   {stage}
                 </span>
                 {i < BUILD_STAGES.length - 1 && (
-                  <span className="text-xs text-border-2">·</span>
+                  <span style={{ fontSize: 12, color: 'var(--border-2)' }}>·</span>
                 )}
               </div>
             ))}
@@ -90,19 +83,19 @@ export function CanvasToolbar({ workflowName, onNewBuild }: CanvasToolbarProps) 
       {/* Status label when idle / done */}
       {!isBuilding && buildStatus !== 'idle' && (
         <>
-          <div className="w-px h-4 bg-border-1 flex-shrink-0" />
-          <div className="flex items-center gap-2">
+          <div style={{ width: 1, height: 16, background: 'var(--border-1)', flexShrink: 0 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <StatusDot state={dotState} />
             <Label>{buildStatus.replace(/_/g, ' ')}</Label>
           </div>
         </>
       )}
 
-      <div className="flex-1" />
+      <div style={{ flex: 1 }} />
 
       {/* Graph stats */}
       {nodeCount > 0 && (
-        <Label className="flex-shrink-0 hidden sm:block">
+        <Label style={{ flexShrink: 0 }}>
           {nodeCount} agents · {edgeCount} edges
         </Label>
       )}
@@ -113,13 +106,11 @@ export function CanvasToolbar({ workflowName, onNewBuild }: CanvasToolbarProps) 
         </Button>
       )}
 
-      {/* Templates — plain anchor styled as button */}
-      <a
-        href="/templates"
-        target="_blank"
-        rel="noreferrer"
-        className="btn btn--ghost btn--sm"
-      >
+      <a href="/workflows" className="btn btn--ghost btn--sm">
+        My Agents
+      </a>
+
+      <a href="/templates" className="btn btn--ghost btn--sm">
         Templates
       </a>
 
@@ -128,9 +119,9 @@ export function CanvasToolbar({ workflowName, onNewBuild }: CanvasToolbarProps) 
       </Button>
 
       {/* Connection indicator */}
-      <div className="flex items-center gap-2 flex-shrink-0 pl-3 border-l border-border-1">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, paddingLeft: 12, borderLeft: '1px solid var(--border-1)' }}>
         <StatusDot state={connected ? 'active' : 'error'} />
-        <Label className="hidden sm:block">{connected ? 'Connected' : 'Disconnected'}</Label>
+        <Label>{connected ? 'Connected' : 'Disconnected'}</Label>
       </div>
     </div>
   )

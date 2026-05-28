@@ -41,32 +41,34 @@ function BuildLogTab({ logs }: { logs: BuildLog[] }) {
         icon="🏗"
         title="Build log empty"
         body="Build log will appear here when you start a build"
-        className="h-full py-12"
+        style={{ height: '100%', paddingTop: 48, paddingBottom: 48 }}
       />
     )
   }
 
   return (
-    <div className="flex flex-col overflow-y-auto h-full">
+    <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', height: '100%' }}>
       {logs.map((log) => (
         <div
           key={log.id}
-          className="flex items-start gap-2 px-4 py-2 border-b border-border-0 hover:bg-surface-2 transition-colors duration-fast"
+          style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 16px', borderBottom: '1px solid var(--border-0)' }}
         >
-          <span className="text-base flex-shrink-0 mt-0.5" aria-hidden>
+          <span style={{ fontSize: 13, flexShrink: 0, marginTop: 2 }} aria-hidden>
             {STAGE_EMOJI[log.stage] ?? '·'}
           </span>
-          <div className="flex flex-col gap-1 min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Label>{log.stage}</Label>
-              <span className="text-xs font-mono text-text-tertiary flex-shrink-0">
+              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', flexShrink: 0 }}>
                 {fmtTime(log.timestamp)}
               </span>
             </div>
-            <p className={[
-              'text-base leading-snug break-words',
-              log.level === 'error' ? 'text-error' : log.level === 'warning' ? 'text-warning' : 'text-text-secondary',
-            ].join(' ')}>
+            <p style={{
+              fontSize: 13,
+              lineHeight: 1.4,
+              wordBreak: 'break-word',
+              color: log.level === 'error' ? 'var(--error)' : log.level === 'warning' ? 'var(--warning)' : 'var(--text-secondary)',
+            }}>
               {log.message}
             </p>
           </div>
@@ -88,38 +90,49 @@ function MessagesTab({ messages }: { messages: AgentMessage[] }) {
         icon="💬"
         title="No messages yet"
         body="Agent messages appear here during builds"
-        className="h-full py-12"
+        style={{ height: '100%', paddingTop: 48, paddingBottom: 48 }}
       />
     )
   }
 
   return (
-    <div className="flex flex-col overflow-y-auto h-full">
+    <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', height: '100%' }}>
       {messages.map((msg) => {
         const expanded = expandedId === msg.id
         return (
           <button
             key={msg.id}
             onClick={() => setExpandedId(expanded ? null : msg.id)}
-            className="flex flex-col gap-2 px-4 py-3 border-b border-border-0 hover:bg-surface-2 transition-colors duration-fast text-left focus-visible:outline-none w-full"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6,
+              padding: '12px 16px',
+              borderBottom: '1px solid var(--border-0)',
+              background: 'transparent',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              textAlign: 'left',
+              width: '100%',
+            }}
           >
-            <div className="flex items-center gap-2 w-full min-w-0">
-              <span className="text-sm font-medium text-text-primary truncate max-w-[70px]">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', minWidth: 0 }}>
+              <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 70 }}>
                 {msg.from_agent}
               </span>
-              <span className="text-xs text-text-tertiary flex-shrink-0">→</span>
-              <span className="text-sm text-text-secondary truncate max-w-[70px]">
+              <span style={{ fontSize: 11, color: 'var(--text-tertiary)', flexShrink: 0 }}>→</span>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 70 }}>
                 {msg.to_agent}
               </span>
-              <div className="flex-1" />
+              <div style={{ flex: 1 }} />
               <Badge variant={MSG_BADGE[msg.type] ?? 'default'}>
                 {msg.type.replace(/_/g, ' ')}
               </Badge>
             </div>
-            <p className="text-xs text-text-tertiary leading-snug break-words text-left w-full">
+            <p style={{ fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.5, wordBreak: 'break-word', textAlign: 'left', width: '100%' }}>
               {expanded ? msg.content : msg.content.length > 80 ? msg.content.slice(0, 80) + '…' : msg.content}
             </p>
-            <span className="text-xs font-mono text-text-tertiary self-end">
+            <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', alignSelf: 'flex-end' }}>
               {fmtTime(msg.timestamp)}
             </span>
           </button>
@@ -141,37 +154,36 @@ function TokensTab({ tokenUsage, estimatedCost }: { tokenUsage: Record<string, n
         icon="📊"
         title="No token usage yet"
         body="Token usage appears here when workflows run"
-        className="h-full py-12"
+        style={{ height: '100%', paddingTop: 48, paddingBottom: 48 }}
       />
     )
   }
 
   return (
-    <div className="flex flex-col overflow-y-auto h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border-1 flex-shrink-0">
-        <div className="flex flex-col gap-1">
+    <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border-1)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <Label>Total tokens</Label>
-          <span className="text-md font-medium text-text-primary">{total.toLocaleString()}</span>
+          <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>{total.toLocaleString()}</span>
         </div>
-        <div className="flex flex-col gap-1 items-end">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
           <Label>Est. cost</Label>
-          <span className="text-md font-medium text-accent">${estimatedCost.toFixed(4)}</span>
+          <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--accent-text)' }}>${estimatedCost.toFixed(4)}</span>
         </div>
       </div>
-      <div className="flex flex-col flex-1 overflow-y-auto">
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto' }}>
         {entries.sort(([, a], [, b]) => b - a).map(([agent, tokens]) => (
           <div
             key={agent}
-            className="flex flex-col gap-2 px-4 py-3 border-b border-border-0 hover:bg-surface-2 transition-colors duration-fast"
+            style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 16px', borderBottom: '1px solid var(--border-0)' }}
           >
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-text-secondary truncate max-w-[140px]">{agent}</span>
-              <span className="text-sm font-mono text-text-primary flex-shrink-0">{tokens.toLocaleString()}</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>{agent}</span>
+              <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', flexShrink: 0 }}>{tokens.toLocaleString()}</span>
             </div>
-            <div className="h-px w-full bg-border-1 rounded-full overflow-hidden">
+            <div style={{ height: 2, width: '100%', background: 'var(--border-1)', borderRadius: 999, overflow: 'hidden' }}>
               <div
-                className="h-full bg-accent transition-all duration-normal"
-                style={{ width: `${Math.round((tokens / max) * 100)}%` }}
+                style={{ height: '100%', background: 'var(--accent)', width: `${Math.round((tokens / max) * 100)}%` }}
               />
             </div>
           </div>
@@ -191,61 +203,65 @@ export function MonitorPanel() {
   const addBuildLog = useGenesisStore((s) => s.addBuildLog)
   const updateTokenUsage = useGenesisStore((s) => s.updateTokenUsage)
   const setEstimatedCost = useGenesisStore((s) => s.setEstimatedCost)
+  const setBuildStatus = useGenesisStore((s) => s.setBuildStatus)
   const isBuilding = useGenesisStore((s) => s.isBuilding)
 
   const { subscribe } = useWebSocket()
 
   useEffect(() => {
     const u1 = subscribe('agent_message', (p) => addAgentMessage(p as AgentMessage))
-    const u2 = subscribe('build_progress', (p) => addBuildLog(p as BuildLog))
+    const u2 = subscribe('build_progress', (p) => {
+      const payload = p as BuildLog & { status?: string; action?: string }
+      addBuildLog(payload as BuildLog)
+      // Keep toolbar status in sync
+      if (payload?.status) setBuildStatus(payload.status)
+      if (payload?.action === 'deployed') setBuildStatus('deployed')
+    })
     const u3 = subscribe('monitor_update', (p) => {
       const { agent, tokens, cost } = p as { agent: string; tokens: number; cost: number }
       updateTokenUsage(agent, tokens)
       setEstimatedCost(cost)
     })
     return () => { u1(); u2(); u3() }
-  }, [subscribe, addAgentMessage, addBuildLog, updateTokenUsage, setEstimatedCost])
+  }, [subscribe, addAgentMessage, addBuildLog, updateTokenUsage, setEstimatedCost, setBuildStatus])
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
 
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border-0 flex-shrink-0">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--border-0)', flexShrink: 0 }}>
         <Label>Monitor</Label>
         {isBuilding && <StatusDot state="building" />}
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-border-1 flex-shrink-0">
-        {(['log', 'messages', 'tokens'] as const).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActive(tab)}
-            className={[
-              'px-4 py-3 text-sm font-medium whitespace-nowrap select-none',
-              'border-b-2 -mb-px cursor-pointer transition-colors duration-fast',
-              'focus-visible:outline-none',
-              active === tab
-                ? 'text-text-primary border-accent'
-                : 'text-text-tertiary border-transparent hover:text-text-secondary',
-            ].join(' ')}
-          >
-            {tab === 'log' && 'Build Log'}
-            {tab === 'messages' && (
-              <span className="flex items-center gap-2">
-                Messages
-                {agentMessages.length > 0 && (
-                  <Badge variant="default">{agentMessages.length}</Badge>
-                )}
-              </span>
-            )}
-            {tab === 'tokens' && 'Tokens'}
-          </button>
-        ))}
+      <div className="tabs">
+        <button
+          onClick={() => setActive('log')}
+          className={`tab${active === 'log' ? ' tab--active' : ''}`}
+        >
+          Build Log
+        </button>
+        <button
+          onClick={() => setActive('messages')}
+          className={`tab${active === 'messages' ? ' tab--active' : ''}`}
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+        >
+          Messages
+          {agentMessages.length > 0 && (
+            <Badge variant="default">{agentMessages.length}</Badge>
+          )}
+        </button>
+        <button
+          onClick={() => setActive('tokens')}
+          className={`tab${active === 'tokens' ? ' tab--active' : ''}`}
+        >
+          Tokens
+        </button>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-hidden">
+      <div style={{ flex: 1, overflow: 'hidden' }}>
         {active === 'log' && <BuildLogTab logs={buildLogs} />}
         {active === 'messages' && <MessagesTab messages={agentMessages} />}
         {active === 'tokens' && <TokensTab tokenUsage={tokenUsage} estimatedCost={estimatedCost} />}

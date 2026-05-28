@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import json
 import uuid
 from typing import Any
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, START, StateGraph
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from genesis.agents.state import GenesisState, WorkflowState
 from genesis.config import settings
@@ -63,35 +64,15 @@ async def compile_genesis_graph(
     return graph.compile(checkpointer=checkpointer)
 
 
-def compile_workflow_from_json(graph_json: dict[str, Any]):
+async def compile_workflow_from_json(graph_json: dict[str, Any]):
     """Dynamically compile an operational workflow from a stored graph_json."""
-    from genesis.utils.model_router import get_llm
+    from genesis.tools.implementations import get_tools_for_agent
 
     nodes: list[dict] = graph_json.get("nodes", [])
     edges: list[dict] = graph_json.get("edges", [])
 
-    graph: StateGraph = StateGraph(WorkflowState)
-
-    for node in nodes:
-        node_id: str = node["id"]
-        model_name: str = node.get("model_name", "claude-sonnet-4-5")
-        system_prompt: str = node.get("system_prompt", "You are a helpful agent.")
-
-        llm = get_llm(model_name)
-
-        async def _make_node(sp: str = system_prompt, lm=llm):
-            async def _node(state: WorkflowState) -> dict[str, Any]:
-                from langchain_core.messages import HumanMessage, SystemMessage
-                last_input = str(state.get("input_data", {}))
-                response = await lm.ainvoke(
-                    [SystemMessage(content=sp), HumanMessage(content=last_input)]
-                )
-                return {"intermediate_results": {sp[:20]: str(response.content)}}
-            return _node
-
-        graph.add_node(node_id, await _make_node())
-
     if not nodes:
+        graph: StateGraph = StateGraph(WorkflowState)
         async def _noop(state: WorkflowState) -> dict[str, Any]:
             return {}
         graph.add_node("noop", _noop)
@@ -99,9 +80,49 @@ def compile_workflow_from_json(graph_json: dict[str, Any]):
         graph.add_edge("noop", END)
         return graph.compile()
 
-    first_id = nodes[0]["id"]
-    last_id = nodes[-1]["id"]
-    graph.add_edge(START, first_id)
+    graph = StateGraph(WorkflowState)
+
+    def _make_node(sp: str, lm, tool_names: list[str] = []):
+        tools = get_tools_for_agent(tool_names)
+        bound_lm = lm.bind_tools(tools) if tools else lm
+        tool_map = {t.name: t for t in tools}
+
+        async def _node(state: WorkflowState) -> dict[str, Any]:
+            prior = state.get("intermediate_results", {})
+            context = json.dumps(prior) if prior else str(state.get("input_data", {}))
+            response = await bound_lm.ainvoke(
+                [SystemMessage(content=sp), HumanMessage(content=context)]
+            )
+            results: dict[str, Any] = {sp[:30]: str(response.content)}
+            for tc in getattr(response, "tool_calls", []):
+                tool = tool_map.get(tc["name"])
+                if tool:
+                    try:
+                        result = await tool.ainvoke(tc["args"])
+                        results[tc["name"]] = str(result)
+                    except Exception as exc:
+                        results[tc["name"]] = f"ERROR: {exc}"
+            return {"intermediate_results": results}
+        return _node
+
+    for node in nodes:
+        node_id: str = node["id"]
+        model_name: str = node.get("model_name", "claude-sonnet-4-5")
+        system_prompt: str = node.get("system_prompt", "You are a helpful agent.")
+        tool_names: list[str] = node.get("tools") or []
+        llm = get_llm(model_name)
+        graph.add_node(node_id, _make_node(system_prompt, llm, tool_names))
+
+    # Build edge sets for parallel start/end detection
+    nodes_with_incoming: set[str] = {e["target"] for e in edges if e.get("target")}
+    nodes_with_outgoing: set[str] = {e["source"] for e in edges if e.get("source")}
+    node_ids: set[str] = {n["id"] for n in nodes}
+
+    entry_nodes = node_ids - nodes_with_incoming
+    exit_nodes = node_ids - nodes_with_outgoing
+
+    for nid in entry_nodes:
+        graph.add_edge(START, nid)
 
     added: set[tuple[str, str]] = set()
     for edge in edges:
@@ -110,8 +131,8 @@ def compile_workflow_from_json(graph_json: dict[str, Any]):
             graph.add_edge(src, dst)
             added.add((src, dst))
 
-    if last_id not in {e.get("source") for e in edges}:
-        graph.add_edge(last_id, END)
+    for nid in exit_nodes:
+        graph.add_edge(nid, END)
 
     return graph.compile()
 
@@ -125,7 +146,7 @@ async def run_genesis_build(
     conn_string = (db_url or settings.database_url).replace("+asyncpg", "")
 
     try:
-        async with await AsyncPostgresSaver.from_conn_string(conn_string) as saver:
+        async with AsyncPostgresSaver.from_conn_string(conn_string) as saver:
             await saver.setup()
             compiled = await compile_genesis_graph(checkpointer=saver)
 

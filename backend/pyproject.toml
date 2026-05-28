@@ -3,6 +3,10 @@ name = "genesis-backend"
 version = "0.1.0"
 requires-python = ">=3.12"
 description = "Genesis AI Agent Orchestration Platform — Backend"
+dependencies = [
+    "ddgs>=9.14.4",
+    "duckduckgo-search>=8.1.1",
+]
 
 [tool.uv]
 dev-dependencies = [

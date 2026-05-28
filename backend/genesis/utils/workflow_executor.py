@@ -11,8 +11,13 @@ from genesis.database import async_session
 from genesis.models.run import Message, MessageType, Run, RunStatus
 from genesis.models.workflow import Workflow
 from genesis.utils.logger import get_logger
+from genesis.utils.redis_client import RUN_EVENTS, redis_client
 
 logger = get_logger("genesis.workflow_executor")
+
+
+def _now_iso() -> str:
+    return datetime.now(tz=timezone.utc).isoformat()
 
 
 async def execute_deployed_workflow(
@@ -40,6 +45,17 @@ async def execute_deployed_workflow(
         session.add(run)
         await session.commit()
 
+    await redis_client.publish(
+        RUN_EVENTS,
+        {
+            "type": "run_event",
+            "event": "run_started",
+            "workflow_id": workflow_id,
+            "run_id": run_id,
+            "timestamp": _now_iso(),
+        },
+    )
+
     total_tokens = 0
     error: str | None = None
     final_output: dict[str, Any] = {}
@@ -47,7 +63,7 @@ async def execute_deployed_workflow(
     try:
         from genesis.agents.graph_compiler import compile_workflow_from_json
 
-        compiled = compile_workflow_from_json(graph_json)
+        compiled = await compile_workflow_from_json(graph_json)
 
         initial: WorkflowState = {
             "workflow_id": workflow_id,
@@ -61,13 +77,34 @@ async def execute_deployed_workflow(
 
         result = await compiled.ainvoke(initial)
         final_output = result.get("intermediate_results", {})
-
-        # Rough token estimate from intermediate results
         total_tokens = sum(len(str(v)) // 4 for v in final_output.values())
+
+        await redis_client.publish(
+            RUN_EVENTS,
+            {
+                "type": "run_event",
+                "event": "run_completed",
+                "workflow_id": workflow_id,
+                "run_id": run_id,
+                "token_count": total_tokens,
+                "timestamp": _now_iso(),
+            },
+        )
 
     except Exception as exc:
         logger.exception("Workflow execution failed: workflow_id=%s run_id=%s", workflow_id, run_id)
         error = str(exc)
+        await redis_client.publish(
+            RUN_EVENTS,
+            {
+                "type": "run_event",
+                "event": "run_failed",
+                "workflow_id": workflow_id,
+                "run_id": run_id,
+                "error": error,
+                "timestamp": _now_iso(),
+            },
+        )
 
     completed_at = datetime.now(tz=timezone.utc)
 
@@ -84,7 +121,6 @@ async def execute_deployed_workflow(
         completed_at=completed_at,
     )
 
-    # Persist a summary message
     async with async_session() as session:
         session.add(
             Message(

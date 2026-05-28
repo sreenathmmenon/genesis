@@ -38,19 +38,17 @@ Cost estimation: assume $0.009 per 1K tokens (blended rate).
 """
 
 _TELEGRAM_APPROVAL_TEMPLATE = """\
-🔮 *Genesis Workflow Ready for Review*
+🔮 Genesis Workflow Ready for Review
 
-*{workflow_name}*
-_{description}_
+{workflow_name}
+{description}
 
-📊 *Validation Report*
+📊 Validation Report
 • Safety checks: {safety_summary}
-• Est. tokens/run: {tokens_per_run:,}
-• Est. monthly cost: ${monthly_cost:.2f}
+• Est. tokens/run: {tokens_per_run}
+• Est. monthly cost: ${monthly_cost}
 
-{warnings_section}
-
-Do you want to deploy this workflow?
+{warnings_section}Do you want to deploy this workflow?
 """
 
 
@@ -86,17 +84,20 @@ class ValidatorAgent(GenesisAgent):
         safety_summary = "✅ All passed" if all(safety.values()) else "⚠️ Issues found"
         warnings = report.get("warnings", [])
         warnings_section = (
-            "⚠️ *Warnings*\n" + "\n".join(f"• {w}" for w in warnings)
+            "⚠️ Warnings\n" + "\n".join(f"• {w}" for w in warnings) + "\n\n"
             if warnings
             else ""
         )
+
+        tokens_per_run = report.get("estimated_tokens_per_run", 0)
+        monthly_cost = report.get("estimated_monthly_cost_usd", 0.0)
 
         approval_msg = _TELEGRAM_APPROVAL_TEMPLATE.format(
             workflow_name=builder_output.get("workflow_name", "Unnamed Workflow"),
             description=builder_output.get("description", ""),
             safety_summary=safety_summary,
-            tokens_per_run=report.get("estimated_tokens_per_run", 0),
-            monthly_cost=report.get("estimated_monthly_cost_usd", 0.0),
+            tokens_per_run=f"{tokens_per_run:,}" if isinstance(tokens_per_run, int) else str(tokens_per_run),
+            monthly_cost=f"{monthly_cost:.2f}" if isinstance(monthly_cost, float) else str(monthly_cost),
             warnings_section=warnings_section,
         )
 

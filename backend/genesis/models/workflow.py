@@ -1,7 +1,7 @@
 import enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Enum, Text
+from sqlalchemy import Enum, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -36,6 +36,7 @@ class Workflow(Base):
     graph_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     canvas_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     template_name: Mapped[str | None] = mapped_column(nullable=True)
+    schedule_expr: Mapped[str | None] = mapped_column(String, nullable=True)
 
     agents: Mapped[list["Agent"]] = relationship(
         "Agent",

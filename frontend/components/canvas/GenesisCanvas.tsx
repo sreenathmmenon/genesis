@@ -65,19 +65,31 @@ export function GenesisCanvas() {
 
   // WebSocket: live canvas updates from the build pipeline
   const { subscribe } = useWebSocket()
+  const clearCanvas = useGenesisStore((s) => s.clearCanvas)
 
   useEffect(() => {
-    const unsubNode = subscribe('canvas_node_added', (payload) => {
+    // Bulk canvas update from builder agent (canvas_json payload)
+    const unsubBulk = subscribe('canvas_node_added', (payload) => {
+      const p = payload as Record<string, unknown>
+
+      // Bulk canvas_json update (sent by builder)
+      if (p && typeof p === 'object' && 'canvas_json' in p) {
+        const canvas = p.canvas_json as { nodes?: Node[]; edges?: Edge[] }
+        clearCanvas()
+        if (canvas?.nodes) canvas.nodes.forEach(addStoreNode)
+        if (canvas?.edges) canvas.edges.forEach((e) =>
+          addStoreEdge({ ...e, animated: true, style: EDGE_STYLE })
+        )
+        return
+      }
+
+      // Single node add
       addStoreNode(payload as Node)
     })
 
     const unsubEdge = subscribe('canvas_edge_added', (payload) => {
       const edge = payload as Edge
-      addStoreEdge({
-        ...edge,
-        animated: true,
-        style: EDGE_STYLE,
-      })
+      addStoreEdge({ ...edge, animated: true, style: EDGE_STYLE })
     })
 
     const unsubUpdate = subscribe('canvas_node_updated', (payload) => {
@@ -86,11 +98,11 @@ export function GenesisCanvas() {
     })
 
     return () => {
-      unsubNode()
+      unsubBulk()
       unsubEdge()
       unsubUpdate()
     }
-  }, [subscribe, addStoreNode, addStoreEdge, updateStoreNode])
+  }, [subscribe, addStoreNode, addStoreEdge, updateStoreNode, clearCanvas])
 
   const isEmpty = nodes.length === 0
 

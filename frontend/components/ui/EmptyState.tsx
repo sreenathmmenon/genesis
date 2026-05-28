@@ -6,21 +6,23 @@ interface EmptyStateProps {
   body?: string
   action?: React.ReactNode
   className?: string
+  style?: React.CSSProperties
 }
 
-export function EmptyState({ icon, title, body, action, className = '' }: EmptyStateProps) {
+export function EmptyState({ icon, title, body, action, className = '', style }: EmptyStateProps) {
   return (
     <div
-      className={`flex flex-col items-center justify-center px-8 py-16 text-center gap-3 ${className}`}
+      className={`empty-state ${className}`.trim()}
+      style={style}
     >
       {icon && (
-        <div className="text-[32px] opacity-30">{icon}</div>
+        <div className="empty-state-icon">{icon}</div>
       )}
-      <p className="text-md font-medium text-text-secondary">{title}</p>
+      <p className="empty-state-title">{title}</p>
       {body && (
-        <p className="text-sm text-text-tertiary max-w-[280px]">{body}</p>
+        <p className="empty-state-body">{body}</p>
       )}
-      {action && <div className="mt-1">{action}</div>}
+      {action && <div style={{ marginTop: 4 }}>{action}</div>}
     </div>
   )
 }

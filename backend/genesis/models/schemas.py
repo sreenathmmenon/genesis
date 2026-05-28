@@ -79,6 +79,7 @@ class WorkflowRead(BaseModel):
     graph_json: dict[str, Any] | None
     canvas_json: dict[str, Any] | None
     template_name: str | None
+    schedule_expr: str | None
     agents: list[AgentRead] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
@@ -90,6 +91,7 @@ class WorkflowUpdate(BaseModel):
     status: WorkflowStatus | None = None
     graph_json: dict[str, Any] | None = None
     canvas_json: dict[str, Any] | None = None
+    schedule_expr: str | None = None
 
 
 # ── Run + Message ──────────────────────────────────────────────────────────────

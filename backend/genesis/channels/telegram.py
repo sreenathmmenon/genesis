@@ -70,7 +70,6 @@ class TelegramBridge(ChannelBridge):
             await self._app.bot.send_message(
                 chat_id=settings.telegram_chat_id,
                 text=text,
-                parse_mode="Markdown",
                 **kwargs,
             )
         except Exception as exc:
@@ -95,7 +94,6 @@ class TelegramBridge(ChannelBridge):
             await self._app.bot.send_message(
                 chat_id=settings.telegram_chat_id,
                 text=message,
-                parse_mode="Markdown",
                 reply_markup=keyboard,
             )
             logger.info("Approval request sent for build_id=%s", build_id)
@@ -145,14 +143,69 @@ class TelegramBridge(ChannelBridge):
 
     async def _trigger_deploy(self, build_id: str, query: Any) -> None:
         try:
+            import uuid
+            from genesis.database import async_session
+            from genesis.models.genesis_build import BuildStatus, GenesisBuild
+            from genesis.models.workflow import Workflow, WorkflowStatus
+
+            async with async_session() as session:
+                build = await session.get(GenesisBuild, uuid.UUID(build_id))
+                if not build:
+                    await query.edit_message_text(f"❌ Build `{build_id[:8]}` not found.")
+                    return
+                if build.status not in (BuildStatus.awaiting_approval, BuildStatus.validating):
+                    await query.edit_message_text(
+                        f"❌ Build `{build_id[:8]}` is `{build.status.value}` — cannot deploy."
+                    )
+                    return
+
+                builder_output: dict = build.builder_output or {}
+                graph_json = builder_output.get("graph_json") or {}
+                graph_nodes: list = graph_json.get("nodes", [])
+                schedule_expr: str | None = graph_nodes[0].get("schedule") if graph_nodes else None
+
+                workflow = Workflow(
+                    name=builder_output.get("workflow_name", "Unnamed Workflow"),
+                    description=builder_output.get("description", ""),
+                    intent=build.intent,
+                    status=WorkflowStatus.active,
+                    graph_json=graph_json or None,
+                    canvas_json=builder_output.get("canvas_json"),
+                    template_name=None,
+                    schedule_expr=schedule_expr,
+                )
+                session.add(workflow)
+                await session.flush()
+
+                build.status = BuildStatus.deployed
+                build.workflow_id = workflow.id
+                await session.commit()
+                await session.refresh(workflow)
+
+                workflow_id = str(workflow.id)
+
+            if schedule_expr:
+                try:
+                    from genesis.utils.scheduler import schedule_workflow
+                    await schedule_workflow(workflow_id, schedule_expr)
+                    logger.info("Scheduled workflow %s with cron '%s'", workflow_id, schedule_expr)
+                except Exception as exc:
+                    logger.error("Failed to schedule workflow %s: %s", workflow_id, exc)
+
             await redis_client.publish(
                 BUILD_PROGRESS,
-                {"build_id": build_id, "action": "deploy", "source": "telegram"},
+                {
+                    "build_id": build_id,
+                    "action": "deployed",
+                    "workflow_id": workflow_id,
+                },
             )
+
+            schedule_note = f" (runs: {schedule_expr})" if schedule_expr else ""
             await query.edit_message_text(
-                f"✅ Deployment initiated for build `{build_id[:8]}`…",
-                parse_mode="Markdown",
+                f"Deployed! Workflow {workflow_id[:8]} is live{schedule_note}.",
             )
+            logger.info("Telegram deploy succeeded: build_id=%s workflow_id=%s", build_id, workflow_id)
         except Exception as exc:
             logger.error("Deploy trigger failed: %s", exc)
             await query.edit_message_text("❌ Failed to trigger deployment.")

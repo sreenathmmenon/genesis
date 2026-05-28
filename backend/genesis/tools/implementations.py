@@ -16,10 +16,13 @@ logger = get_logger("genesis.tools")
 @tool
 async def web_search(query: str, max_results: int = 5) -> str:
     """Search the web using DuckDuckGo and return top results."""
+    import asyncio
     try:
-        from duckduckgo_search import AsyncDDGS
-        async with AsyncDDGS() as ddgs:
-            results = await ddgs.atext(query, max_results=max_results)
+        from ddgs import DDGS
+        loop = asyncio.get_event_loop()
+        results = await loop.run_in_executor(
+            None, lambda: list(DDGS().text(query, max_results=max_results))
+        )
         return json.dumps(
             [{"title": r.get("title"), "href": r.get("href"), "body": r.get("body")} for r in results],
             indent=2,

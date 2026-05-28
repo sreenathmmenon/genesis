@@ -1,8 +1,10 @@
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +15,10 @@ from genesis.models.schemas import WorkflowCreate, WorkflowRead, WorkflowUpdate
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/workflows", tags=["workflows"])
+
+
+class ScheduleRequest(BaseModel):
+    cron_expr: str
 
 
 def _now() -> datetime:
@@ -98,6 +104,61 @@ async def pause_workflow(
     await db.flush()
     await db.refresh(wf)
     logger.info("Workflow paused: %s", workflow_id)
+    return wf
+
+
+@router.post("/{workflow_id}/run")
+async def run_workflow(
+    workflow_id: uuid.UUID, db: AsyncSession = Depends(get_db)
+) -> dict:
+    wf = await db.get(Workflow, workflow_id)
+    if not wf:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    if wf.status not in (WorkflowStatus.active, WorkflowStatus.paused):
+        raise HTTPException(status_code=409, detail=f"Workflow status is '{wf.status.value}' — cannot run")
+
+    from genesis.utils.workflow_executor import execute_deployed_workflow
+    task = asyncio.create_task(execute_deployed_workflow(str(workflow_id)))
+    run_id = task  # fire and forget; run_id obtained via websocket
+    logger.info("Triggered run for workflow %s", workflow_id)
+    return {"workflow_id": str(workflow_id), "status": "running"}
+
+
+@router.post("/{workflow_id}/schedule", response_model=WorkflowRead)
+async def set_workflow_schedule(
+    workflow_id: uuid.UUID, body: ScheduleRequest, db: AsyncSession = Depends(get_db)
+) -> Workflow:
+    wf = await db.get(Workflow, workflow_id)
+    if not wf:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    from genesis.utils.scheduler import schedule_workflow
+    try:
+        await schedule_workflow(str(workflow_id), body.cron_expr)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    wf.schedule_expr = body.cron_expr
+    await db.flush()
+    await db.refresh(wf)
+    logger.info("Schedule set for workflow %s: %s", workflow_id, body.cron_expr)
+    return wf
+
+
+@router.delete("/{workflow_id}/schedule", response_model=WorkflowRead)
+async def remove_workflow_schedule(
+    workflow_id: uuid.UUID, db: AsyncSession = Depends(get_db)
+) -> Workflow:
+    wf = await db.get(Workflow, workflow_id)
+    if not wf:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    from genesis.utils.scheduler import unschedule_workflow
+    await unschedule_workflow(str(workflow_id))
+    wf.schedule_expr = None
+    await db.flush()
+    await db.refresh(wf)
+    logger.info("Schedule removed for workflow %s", workflow_id)
     return wf
 
 

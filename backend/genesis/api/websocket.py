@@ -12,12 +12,13 @@ from genesis.utils.redis_client import (
     AGENT_MESSAGES,
     MONITOR_STREAM,
     SYSTEM_EVENTS,
+    RUN_EVENTS,
 )
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-ALL_CHANNELS = [CANVAS_UPDATES, BUILD_PROGRESS, AGENT_MESSAGES, MONITOR_STREAM, SYSTEM_EVENTS]
+ALL_CHANNELS = [CANVAS_UPDATES, BUILD_PROGRESS, AGENT_MESSAGES, MONITOR_STREAM, SYSTEM_EVENTS, RUN_EVENTS]
 
 # ── Channel → WS event type mapping ──────────────────────────────────────────
 
@@ -27,6 +28,7 @@ CHANNEL_TYPE: dict[str, str] = {
     AGENT_MESSAGES:  "agent_message",
     MONITOR_STREAM:  "monitor_update",
     SYSTEM_EVENTS:   "system_event",
+    RUN_EVENTS:      "run_event",
 }
 
 

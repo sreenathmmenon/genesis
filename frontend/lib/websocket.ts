@@ -21,7 +21,7 @@ class WebSocketManager {
   connect(): void {
     if (this.ws?.readyState === WebSocket.OPEN) return
 
-    this.ws = new WebSocket(`${WS_URL}/ws/${this.clientId}`)
+    this.ws = new WebSocket(`${WS_URL}/api/v1/ws/${this.clientId}`)
 
     this.ws.onopen = () => {
       console.log('[WS] connected, clientId=%s', this.clientId)

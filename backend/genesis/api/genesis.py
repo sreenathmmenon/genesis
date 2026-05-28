@@ -133,15 +133,19 @@ async def deploy_build(
         )
 
     builder_output: dict = build.builder_output or {}
+    graph_json = builder_output.get("graph_json") or {}
+    graph_nodes: list = graph_json.get("nodes", [])
+    schedule_expr: str | None = graph_nodes[0].get("schedule") if graph_nodes else None
 
     workflow = Workflow(
         name=builder_output.get("workflow_name", "Unnamed Workflow"),
         description=builder_output.get("description", ""),
         intent=build.intent,
         status=WorkflowStatus.active,
-        graph_json=builder_output.get("graph_json"),
+        graph_json=graph_json or None,
         canvas_json=builder_output.get("canvas_json"),
         template_name=None,
+        schedule_expr=schedule_expr,
     )
     db.add(workflow)
     await db.flush()
@@ -151,19 +155,30 @@ async def deploy_build(
     await db.commit()
     await db.refresh(workflow)
 
+    workflow_id_str = str(workflow.id)
+
+    if schedule_expr:
+        try:
+            from genesis.utils.scheduler import schedule_workflow
+            await schedule_workflow(workflow_id_str, schedule_expr)
+            logger.info("Scheduled workflow %s with cron '%s'", workflow_id_str, schedule_expr)
+        except Exception as exc:
+            logger.error("Failed to schedule workflow %s: %s", workflow_id_str, exc)
+
     await redis_client.publish(
         BUILD_PROGRESS,
         {
             "build_id": str(build_id),
             "action": "deployed",
-            "workflow_id": str(workflow.id),
+            "workflow_id": workflow_id_str,
         },
     )
 
     return {
-        "workflow_id": str(workflow.id),
+        "workflow_id": workflow_id_str,
         "status": "deployed",
         "name": workflow.name,
+        "schedule_expr": schedule_expr,
     }
 
 

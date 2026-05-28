@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import {
-  Badge, Button, EmptyState, Label, Divider,
+  Badge, Button, EmptyState, Label,
 } from '@/components/ui'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { api } from '@/lib/api'
@@ -22,39 +22,73 @@ function formatDuration(start: string, end: string | null): string {
 function MessageRow({ msg }: { msg: Message }) {
   const [expanded, setExpanded] = useState(false)
 
-  const cardClass = {
-    state_update: 'border-border-0 bg-surface-0',
-    agent_output: 'border-border-1 bg-surface-1',
-    tool_result:  'border-border-1 bg-surface-1',
-    human_input:  'border-accent-border bg-accent-dim',
-    tool_call:    'border-border-2 bg-surface-2',
-  }[msg.message_type] ?? 'border-border-1 bg-surface-1'
+  const bgStyle: React.CSSProperties = {
+    state_update: { background: 'var(--surface-0)', borderColor: 'var(--border-0)' },
+    agent_output: { background: 'var(--surface-1)', borderColor: 'var(--border-1)' },
+    tool_result:  { background: 'var(--surface-1)', borderColor: 'var(--border-1)' },
+    human_input:  { background: 'var(--accent-dim)', borderColor: 'var(--accent-border)' },
+    tool_call:    { background: 'var(--surface-2)', borderColor: 'var(--border-2)' },
+  }[msg.message_type] ?? { background: 'var(--surface-1)', borderColor: 'var(--border-1)' }
 
   return (
     <button
       onClick={() => setExpanded((e) => !e)}
-      className={`w-full text-left flex flex-col gap-1 px-3 py-2 rounded-md border transition-colors duration-fast hover:bg-surface-2 focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] ${cardClass}`}
+      style={{
+        width: '100%',
+        textAlign: 'left',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 6,
+        padding: '8px 12px',
+        borderRadius: 4,
+        border: '1px solid',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        ...bgStyle,
+      }}
     >
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="text-sm font-medium text-text-primary truncate max-w-[90px]">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+        <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 90 }}>
           {msg.sender_agent}
         </span>
-        <span className="text-xs text-text-tertiary flex-shrink-0">→</span>
-        <span className="text-sm text-text-secondary truncate max-w-[90px]">
+        <span style={{ fontSize: 11, color: 'var(--text-tertiary)', flexShrink: 0 }}>→</span>
+        <span style={{ fontSize: 12, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 90 }}>
           {msg.receiver_agent}
         </span>
-        <div className="flex-1" />
+        <div style={{ flex: 1 }} />
         <Badge variant="default">{msg.message_type.replace(/_/g, ' ')}</Badge>
-        <span className="text-xs font-mono text-text-tertiary flex-shrink-0">
+        <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', flexShrink: 0 }}>
           {new Date(msg.timestamp).toLocaleTimeString('en', { hour12: false })}
         </span>
       </div>
       {msg.message_type === 'tool_call' ? (
-        <pre className={`text-xs font-mono text-text-secondary bg-surface-0 border border-border-1 rounded-sm px-2 py-1 overflow-x-auto ${expanded ? '' : 'line-clamp-2'}`}>
+        <pre style={{
+          fontSize: 11,
+          fontFamily: 'var(--font-mono)',
+          color: 'var(--text-secondary)',
+          background: 'var(--surface-0)',
+          border: '1px solid var(--border-1)',
+          borderRadius: 3,
+          padding: '4px 8px',
+          overflowX: 'auto',
+          display: '-webkit-box',
+          WebkitLineClamp: expanded ? 'unset' : 2,
+          WebkitBoxOrient: 'vertical' as const,
+          overflow: expanded ? 'auto' : 'hidden',
+        }}>
           {msg.content}
         </pre>
       ) : (
-        <p className={`text-xs text-text-tertiary leading-snug break-words ${expanded ? '' : 'line-clamp-2'}`}>
+        <p style={{
+          fontSize: 11,
+          color: 'var(--text-tertiary)',
+          lineHeight: 1.5,
+          wordBreak: 'break-word',
+          display: '-webkit-box',
+          WebkitLineClamp: expanded ? 'unset' : 2,
+          WebkitBoxOrient: 'vertical' as const,
+          overflow: expanded ? 'visible' : 'hidden',
+        }}>
           {msg.content}
         </p>
       )}
@@ -83,49 +117,57 @@ function RunRow({ run }: { run: Run }) {
   }
 
   return (
-    <div className="border-b border-border-0 last:border-0">
-      {/* Row */}
+    <div style={{ borderBottom: '1px solid var(--border-0)' }}>
       <button
         onClick={toggleExpand}
-        className="w-full flex items-center gap-4 px-4 py-3 hover:bg-surface-2 transition-colors duration-fast text-left focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+          padding: '12px 16px',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          textAlign: 'left',
+        }}
+        onMouseOver={(e) => (e.currentTarget.style.background = 'var(--surface-2)')}
+        onMouseOut={(e) => (e.currentTarget.style.background = 'transparent')}
       >
-        {/* Workflow ID (abbreviated) */}
-        <span className="text-xs font-mono text-text-tertiary w-20 flex-shrink-0 truncate">
+        <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', width: 80, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {run.workflow_id.slice(0, 8)}
         </span>
 
         <StatusBadge status={run.status} />
 
-        <span className="text-sm text-text-secondary flex-1 truncate">
+        <span style={{ fontSize: 13, color: 'var(--text-secondary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {new Date(run.started_at).toLocaleString('en', { dateStyle: 'short', timeStyle: 'short' })}
         </span>
 
-        <span className="text-sm font-mono text-text-tertiary w-16 flex-shrink-0 text-right">
+        <span style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', width: 64, flexShrink: 0, textAlign: 'right' }}>
           {formatDuration(run.started_at, run.completed_at)}
         </span>
 
-        <span className="text-sm font-mono text-text-tertiary w-20 flex-shrink-0 text-right">
+        <span style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', width: 80, flexShrink: 0, textAlign: 'right' }}>
           {run.token_count_total.toLocaleString()}
         </span>
 
-        <span className="text-sm font-mono text-accent-text w-20 flex-shrink-0 text-right">
+        <span style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--accent-text)', width: 80, flexShrink: 0, textAlign: 'right' }}>
           ${run.estimated_cost_usd.toFixed(4)}
         </span>
 
-        <span className="text-xs text-text-tertiary flex-shrink-0">
+        <span style={{ fontSize: 11, color: 'var(--text-tertiary)', flexShrink: 0 }}>
           {expanded ? '▴' : '▾'}
         </span>
       </button>
 
-      {/* Expanded messages */}
       {expanded && (
-        <div className="px-4 pb-4 flex flex-col gap-2 bg-surface-0 border-t border-border-0">
-          <div className="pt-3">
-            <Label className="mb-2 block">Messages ({messages.length})</Label>
-          </div>
+        <div style={{ padding: '12px 16px 16px', display: 'flex', flexDirection: 'column', gap: 8, background: 'var(--surface-0)', borderTop: '1px solid var(--border-0)' }}>
+          <Label style={{ marginBottom: 4 }}>Messages ({messages.length})</Label>
           {loadingMsgs && <Label>Loading messages…</Label>}
           {!loadingMsgs && messages.length === 0 && (
-            <p className="text-sm text-text-tertiary">No messages recorded for this run.</p>
+            <p style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>No messages recorded for this run.</p>
           )}
           {messages.map((msg) => (
             <MessageRow key={msg.id} msg={msg} />
@@ -170,59 +212,47 @@ export default function HistoryPage() {
 
       {/* Toolbar */}
       <div className="layout-toolbar">
-        <a href="/canvas" className="text-lg font-semibold text-accent tracking-tight">
+        <a href="/canvas" style={{ fontWeight: 600, fontSize: 14, color: 'var(--accent)', textDecoration: 'none', letterSpacing: '-0.01em' }}>
           Genesis
         </a>
-        <div className="w-px h-4 bg-border-1" />
-        <span className="text-md font-medium text-text-primary">Run History</span>
+        <div style={{ width: 1, height: 16, background: 'var(--border-1)', flexShrink: 0 }} />
+        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Run History</span>
         {runs.length > 0 && (
           <Badge variant="default">{runs.length}</Badge>
         )}
       </div>
 
       {/* Table container */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-[1100px] mx-auto">
+      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}>
 
           {/* Table header */}
           {runs.length > 0 && (
-            <div className="flex items-center gap-4 px-4 py-3 border-b border-border-1 bg-surface-1 sticky top-0">
-              <span className="text-xs font-medium tracking-wider uppercase text-text-tertiary w-20 flex-shrink-0">
-                Workflow
-              </span>
-              <span className="text-xs font-medium tracking-wider uppercase text-text-tertiary w-20">
-                Status
-              </span>
-              <span className="text-xs font-medium tracking-wider uppercase text-text-tertiary flex-1">
-                Started
-              </span>
-              <span className="text-xs font-medium tracking-wider uppercase text-text-tertiary w-16 text-right">
-                Duration
-              </span>
-              <span className="text-xs font-medium tracking-wider uppercase text-text-tertiary w-20 text-right">
-                Tokens
-              </span>
-              <span className="text-xs font-medium tracking-wider uppercase text-text-tertiary w-20 text-right">
-                Cost
-              </span>
-              <span className="w-4" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 16px', borderBottom: '1px solid var(--border-1)', background: 'var(--surface-1)', position: 'sticky', top: 0 }}>
+              <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)', width: 80, flexShrink: 0 }}>Workflow</span>
+              <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)', width: 80 }}>Status</span>
+              <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)', flex: 1 }}>Started</span>
+              <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)', width: 64, textAlign: 'right' }}>Duration</span>
+              <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)', width: 80, textAlign: 'right' }}>Tokens</span>
+              <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)', width: 80, textAlign: 'right' }}>Cost</span>
+              <span style={{ width: 16 }} />
             </div>
           )}
 
-          {/* Rows */}
           {loading && (
-            <div className="flex items-center justify-center py-16">
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '64px 0' }}>
               <Label>Loading runs…</Label>
             </div>
           )}
 
           {!loading && runs.length === 0 && (
-            <EmptyState
-              icon="📋"
-              title="No runs yet"
-              body="Run history will appear here once workflows have executed"
-              className="py-16"
-            />
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <EmptyState
+                icon="📋"
+                title="No runs yet"
+                body="Run history will appear here once workflows have executed"
+              />
+            </div>
           )}
 
           {runs.map((run) => (
@@ -231,7 +261,7 @@ export default function HistoryPage() {
 
           {/* Pagination */}
           {runs.length > 0 && (
-            <div className="flex items-center justify-center gap-3 px-4 py-6 border-t border-border-0">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '24px 16px', borderTop: '1px solid var(--border-0)' }}>
               <Button
                 variant="ghost"
                 size="sm"

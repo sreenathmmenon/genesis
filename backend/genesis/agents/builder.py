@@ -58,6 +58,14 @@ Output ONLY valid JSON matching this schema — no markdown, no commentary:
 Layout rules for canvas_json positions:
 - Place nodes horizontally: x = index * 280, y = 100
 - Group parallel nodes vertically: y offset by 160 each
+
+Scheduling rules:
+- If the intent implies recurring/periodic execution (e.g. "every morning", "daily", "every Monday", "weekly"), set "schedule" on the FIRST/trigger node using a valid 5-field UTC cron expression (e.g. "0 9 * * 1-5" for weekdays at 9am UTC).
+- For on-demand workflows with no time-based trigger, leave "schedule": null on all nodes.
+- Only one node should have a non-null schedule (the entry/trigger node).
+
+Available tools for agents: web_search, github_api, http_request, file_reader, telegram_send, scheduler
+Set "tools" to a list of tool names the agent will need. Empty list for agents that only reason/summarize.
 """
 
 

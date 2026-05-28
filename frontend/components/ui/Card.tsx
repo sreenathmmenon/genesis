@@ -5,16 +5,16 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode
 }
 
-export function Card({ variant = 'default', className = '', children, ...props }: CardProps) {
-  const variantClass = {
-    default:  'bg-surface-1 border border-border-1 hover:bg-surface-2',
-    elevated: 'bg-surface-2 border border-border-2',
-    accent:   'bg-accent-dim border border-accent-border',
-  }[variant]
+const variantClass = {
+  default:  'card',
+  elevated: 'card card--elevated',
+  accent:   'card card--accent',
+} as const
 
+export function Card({ variant = 'default', className = '', children, ...props }: CardProps) {
   return (
     <div
-      className={`rounded-md p-4 transition-colors duration-fast ease-default ${variantClass} ${className}`}
+      className={`${variantClass[variant]} ${className}`.trim()}
       {...props}
     >
       {children}
@@ -39,7 +39,7 @@ export function CardHeader({ className = '', children, ...props }: CardSectionPr
 
 export function CardBody({ className = '', children, ...props }: CardSectionProps) {
   return (
-    <div className={`text-text-secondary text-base ${className}`} {...props}>
+    <div className={`${className}`} style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }} {...props}>
       {children}
     </div>
   )

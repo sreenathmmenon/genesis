@@ -7,7 +7,7 @@ interface LabelProps extends React.HTMLAttributes<HTMLSpanElement> {
 export function Label({ className = '', children, ...props }: LabelProps) {
   return (
     <span
-      className={`text-xs font-medium tracking-wider uppercase text-text-tertiary ${className}`}
+      className={`label ${className}`.trim()}
       {...props}
     >
       {children}

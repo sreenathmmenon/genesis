@@ -61,7 +61,24 @@ export const api = {
   deployTemplate: (name: string) =>
     fetch(`${API_BASE}/api/v1/templates/${name}/deploy`, { method: 'POST' }).then(json),
 
+  // ── Workflow execution ──────────────────────────────────────────────────────
+  runWorkflow: (id: string) =>
+    fetch(`${API_BASE}/api/v1/workflows/${id}/run`, { method: 'POST' }).then(json),
+
+  scheduleWorkflow: (id: string, cron_expr: string) =>
+    fetch(`${API_BASE}/api/v1/workflows/${id}/schedule`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cron_expr }),
+    }).then(json),
+
+  removeSchedule: (id: string) =>
+    fetch(`${API_BASE}/api/v1/workflows/${id}/schedule`, { method: 'DELETE' }).then(json),
+
+  getSchedulerJobs: () =>
+    fetch(`${API_BASE}/api/v1/scheduler/jobs`).then(json),
+
   // ── Health ─────────────────────────────────────────────────────────────────
   health: () =>
-    fetch(`${API_BASE}/health`).then(json),
+    fetch(`${API_BASE}/api/v1/health`).then(json),
 }

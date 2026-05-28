@@ -16,6 +16,7 @@ BUILD_PROGRESS = "genesis:build_progress"
 AGENT_MESSAGES = "genesis:agent_messages"
 MONITOR_STREAM = "genesis:monitor"
 SYSTEM_EVENTS  = "genesis:system"
+RUN_EVENTS     = "genesis:run_events"
 
 
 class RedisClient:
@@ -53,7 +54,9 @@ class RedisClient:
             async for raw in pubsub.listen():
                 if raw["type"] == "message":
                     try:
-                        yield json.loads(raw["data"])
+                        payload = json.loads(raw["data"])
+                        payload["_channel"] = raw.get("channel", "")
+                        yield payload
                     except json.JSONDecodeError:
                         logger.warning("Unparseable Redis message on %s", raw.get("channel"))
         finally:

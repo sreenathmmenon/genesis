@@ -33,9 +33,16 @@ export interface Workflow {
   graph_json: Record<string, unknown> | null
   canvas_json: Record<string, unknown> | null
   template_name: string | null
+  schedule_expr: string | null
   agents: Agent[]
   created_at: string
   updated_at: string
+}
+
+export interface SchedulerJob {
+  job_id: string
+  next_run: string | null
+  trigger: string
 }
 
 export interface Message {
