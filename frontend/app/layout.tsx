@@ -13,7 +13,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="en"
       className={`${syne.variable} ${dmMono.variable}`}
     >
-      <body>{children}</body>
+      <body style={{ fontFamily: 'var(--font-sans, system-ui, sans-serif)' }}>
+        {children}
+      </body>
     </html>
   )
 }
