@@ -1,107 +1,137 @@
 'use client'
 
+import { Button, Label, StatusDot } from '@/components/ui'
 import { useGenesisStore } from '@/lib/store'
+import { useWebSocket } from '@/lib/websocket'
 
-const STATUS_COLORS: Record<string, string> = {
-  idle:       'var(--color-text-tertiary, #6e6e6e)',
-  decomposing: 'var(--color-warning, #f5a623)',
-  building:   'var(--color-warning, #f5a623)',
-  critiquing: 'var(--color-info, #3b9edd)',
-  validating: 'var(--color-info, #3b9edd)',
-  awaiting_approval: 'var(--color-accent, #adff2f)',
-  deployed:   'var(--color-accent, #adff2f)',
-  failed:     'var(--color-error, #ff4444)',
+const BUILD_STAGES = ['Analyzing', 'Designing', 'Building', 'Reviewing', 'Validating', 'Ready']
+
+const STATUS_DOT_MAP: Record<string, 'active' | 'idle' | 'error' | 'building' | 'info'> = {
+  idle:               'idle',
+  decomposing:        'building',
+  building:           'building',
+  critiquing:         'info',
+  validating:         'info',
+  awaiting_approval:  'active',
+  deployed:           'active',
+  failed:             'error',
 }
 
-export function CanvasToolbar() {
+const STAGE_FROM_STATUS: Record<string, number> = {
+  decomposing: 0, building: 2, critiquing: 3, validating: 4,
+  awaiting_approval: 5, deployed: 5,
+}
+
+interface CanvasToolbarProps {
+  workflowName?: string
+  onNewBuild?: () => void
+}
+
+export function CanvasToolbar({ workflowName, onNewBuild }: CanvasToolbarProps) {
   const buildStatus = useGenesisStore((s) => s.buildStatus)
   const isBuilding = useGenesisStore((s) => s.isBuilding)
   const clearCanvas = useGenesisStore((s) => s.clearCanvas)
   const nodeCount = useGenesisStore((s) => s.nodes.length)
   const edgeCount = useGenesisStore((s) => s.edges.length)
 
-  const dotColor = STATUS_COLORS[buildStatus] ?? '#6e6e6e'
+  const { connected } = useWebSocket()
+  const dotState = STATUS_DOT_MAP[buildStatus] ?? 'idle'
+  const stageIndex = STAGE_FROM_STATUS[buildStatus] ?? -1
 
   return (
-    <div
-      style={{
-        height: 40,
-        minHeight: 40,
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 16px',
-        background: '#111111',
-        borderBottom: '1px solid #1a1a1a',
-        gap: 16,
-        flexShrink: 0,
-      }}
-    >
-      {/* Status */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: dotColor,
-            display: 'inline-block',
-            animation: isBuilding ? 'genesis-pulse 1.5s infinite' : 'none',
-          }}
-        />
-        <span
-          style={{
-            fontSize: 11,
-            color: '#6e6e6e',
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-            fontWeight: 500,
-          }}
-        >
-          {buildStatus}
-        </span>
-      </div>
+    <div className="layout-toolbar">
 
-      <div
-        style={{
-          width: 1,
-          height: 16,
-          background: '#1a1a1a',
-        }}
-      />
-
-      {/* Graph stats */}
-      <span style={{ fontSize: 11, color: '#6e6e6e' }}>
-        {nodeCount} agents · {edgeCount} edges
+      {/* Brand */}
+      <span className="text-lg font-semibold text-accent tracking-tight flex-shrink-0">
+        Genesis
       </span>
 
-      <div style={{ flex: 1 }} />
+      <div className="w-px h-4 bg-border-1 flex-shrink-0" />
 
-      {/* Clear button */}
-      {nodeCount > 0 && (
-        <button
-          onClick={clearCanvas}
-          style={{
-            background: 'transparent',
-            border: '1px solid #222222',
-            borderRadius: 5,
-            padding: '3px 10px',
-            fontSize: 11,
-            color: '#6e6e6e',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-          }}
-          onMouseEnter={(e) => {
-            ;(e.currentTarget as HTMLButtonElement).style.color = '#ededed'
-            ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#2e2e2e'
-          }}
-          onMouseLeave={(e) => {
-            ;(e.currentTarget as HTMLButtonElement).style.color = '#6e6e6e'
-            ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#222222'
-          }}
-        >
-          Clear
-        </button>
+      {/* Workflow name */}
+      <span className="text-sm font-mono text-text-tertiary truncate min-w-0">
+        {workflowName ?? 'New Workflow'}
+      </span>
+
+      {/* Build stage progress dots — only while building */}
+      {isBuilding && stageIndex >= 0 && (
+        <>
+          <div className="w-px h-4 bg-border-1 flex-shrink-0" />
+          <div className="flex items-center gap-2 overflow-hidden">
+            {BUILD_STAGES.map((stage, i) => (
+              <div key={stage} className="flex items-center gap-1.5 flex-shrink-0">
+                <span
+                  className={[
+                    'w-1.5 h-1.5 rounded-full flex-shrink-0 transition-colors duration-normal',
+                    i < stageIndex
+                      ? 'bg-accent'
+                      : i === stageIndex
+                        ? 'bg-accent animate-pulse-subtle'
+                        : 'bg-border-2',
+                  ].join(' ')}
+                />
+                <span
+                  className={[
+                    'text-xs',
+                    i === stageIndex ? 'text-text-primary' : 'text-text-tertiary',
+                  ].join(' ')}
+                >
+                  {stage}
+                </span>
+                {i < BUILD_STAGES.length - 1 && (
+                  <span className="text-xs text-border-2">·</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
       )}
+
+      {/* Status label when idle / done */}
+      {!isBuilding && buildStatus !== 'idle' && (
+        <>
+          <div className="w-px h-4 bg-border-1 flex-shrink-0" />
+          <div className="flex items-center gap-2">
+            <StatusDot state={dotState} />
+            <Label>{buildStatus.replace(/_/g, ' ')}</Label>
+          </div>
+        </>
+      )}
+
+      <div className="flex-1" />
+
+      {/* Graph stats */}
+      {nodeCount > 0 && (
+        <Label className="flex-shrink-0 hidden sm:block">
+          {nodeCount} agents · {edgeCount} edges
+        </Label>
+      )}
+
+      {nodeCount > 0 && (
+        <Button variant="ghost" size="sm" onClick={clearCanvas}>
+          Clear
+        </Button>
+      )}
+
+      {/* Templates — plain anchor styled as button */}
+      <a
+        href="/templates"
+        target="_blank"
+        rel="noreferrer"
+        className="btn btn--ghost btn--sm"
+      >
+        Templates
+      </a>
+
+      <Button variant="secondary" size="sm" onClick={onNewBuild}>
+        New Build
+      </Button>
+
+      {/* Connection indicator */}
+      <div className="flex items-center gap-2 flex-shrink-0 pl-3 border-l border-border-1">
+        <StatusDot state={connected ? 'active' : 'error'} />
+        <Label className="hidden sm:block">{connected ? 'Connected' : 'Disconnected'}</Label>
+      </div>
     </div>
   )
 }

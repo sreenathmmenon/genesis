@@ -1,110 +1,86 @@
 'use client'
 
-import { useGenesisStore } from '@/lib/store'
+import { Suspense, useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { GenesisCanvas } from '@/components/canvas/GenesisCanvas'
 import { CanvasToolbar } from '@/components/canvas/CanvasToolbar'
 import { AgentConfigPanel } from '@/components/panels/AgentConfigPanel'
 import { MonitorPanel } from '@/components/monitor/MonitorPanel'
+import { IntentInput } from '@/components/panels/IntentInput'
+import { useGenesisStore } from '@/lib/store'
+import { api } from '@/lib/api'
+import type { Workflow } from '@/lib/types'
+import type { Node, Edge } from '@xyflow/react'
 
-const PANEL_STYLE: React.CSSProperties = {
-  background: '#111111',
-  borderRight: '1px solid #1a1a1a',
-  overflow: 'hidden',
-  display: 'flex',
-  flexDirection: 'column',
-  flexShrink: 0,
+function CanvasPageInner() {
+  const searchParams = useSearchParams()
+  const workflowId = searchParams.get('workflow_id')
+
+  const addNode = useGenesisStore((s) => s.addNode)
+  const addEdge = useGenesisStore((s) => s.addEdge)
+  const clearCanvas = useGenesisStore((s) => s.clearCanvas)
+
+  const [workflow, setWorkflow] = useState<Workflow | null>(null)
+  const [intentOpen, setIntentOpen] = useState(false)
+
+  // Load workflow from URL param
+  useEffect(() => {
+    if (!workflowId) return
+    clearCanvas()
+    api.getWorkflow(workflowId)
+      .then((wf: Workflow) => {
+        setWorkflow(wf)
+        const canvas = wf.canvas_json as { nodes?: Node[]; edges?: Edge[] } | null
+        if (canvas?.nodes) canvas.nodes.forEach(addNode)
+        if (canvas?.edges) canvas.edges.forEach(addEdge)
+      })
+      .catch(console.error)
+  }, [workflowId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="layout-root">
+
+      {/* Toolbar — uses layout-toolbar primitive */}
+      <CanvasToolbar
+        workflowName={workflow?.name}
+        onNewBuild={() => setIntentOpen(true)}
+      />
+
+      {/* Three-panel body — uses layout-body + layout-left + layout-center + layout-right */}
+      <div className="layout-body">
+
+        {/* Left: 280px, agent config */}
+        <aside className="layout-left">
+          <AgentConfigPanel />
+        </aside>
+
+        {/* Center: flex-1, ReactFlow canvas */}
+        <main className="layout-center flex flex-col">
+          <div className="flex-1 overflow-hidden">
+            <GenesisCanvas />
+          </div>
+        </main>
+
+        {/* Right: 300px, monitor panel */}
+        <aside className="layout-right">
+          <MonitorPanel />
+        </aside>
+
+      </div>
+
+      {/* Intent input modal */}
+      {intentOpen && (
+        <IntentInput onClose={() => setIntentOpen(false)} />
+      )}
+
+    </div>
+  )
 }
 
 export default function CanvasPage() {
-  const selectedNodeId = useGenesisStore((s) => s.selectedNodeId)
-
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        overflow: 'hidden',
-        background: '#0a0a0a',
-      }}
-    >
-      {/* Top toolbar */}
-      <div
-        style={{
-          height: 44,
-          minHeight: 44,
-          display: 'flex',
-          alignItems: 'center',
-          padding: '0 16px',
-          background: '#111111',
-          borderBottom: '1px solid #1a1a1a',
-          gap: 12,
-          flexShrink: 0,
-        }}
-      >
-        <span
-          style={{
-            fontFamily: 'var(--font-syne, system-ui)',
-            fontWeight: 700,
-            fontSize: 14,
-            color: '#ededed',
-            letterSpacing: '-0.01em',
-          }}
-        >
-          Genesis
-        </span>
-        <span
-          style={{
-            fontSize: 10,
-            fontWeight: 500,
-            color: '#adff2f',
-            border: '1px solid #3a5500',
-            background: '#1a2400',
-            borderRadius: 3,
-            padding: '2px 6px',
-            letterSpacing: '0.04em',
-          }}
-        >
-          CANVAS
-        </span>
-      </div>
-
-      {/* Three-column body */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-
-        {/* Left: Agent config (280px) */}
-        <div style={{ ...PANEL_STYLE, width: 280 }}>
-          <AgentConfigPanel />
-        </div>
-
-        {/* Centre: Canvas + toolbar */}
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            position: 'relative',
-          }}
-        >
-          <CanvasToolbar />
-          <div style={{ flex: 1, overflow: 'hidden' }}>
-            <GenesisCanvas />
-          </div>
-        </div>
-
-        {/* Right: Monitor (320px) */}
-        <div
-          style={{
-            ...PANEL_STYLE,
-            width: 320,
-            borderRight: 'none',
-            borderLeft: '1px solid #1a1a1a',
-          }}
-        >
-          <MonitorPanel />
-        </div>
-      </div>
-    </div>
+    <Suspense>
+      <CanvasPageInner />
+    </Suspense>
   )
 }

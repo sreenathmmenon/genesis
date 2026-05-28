@@ -71,12 +71,17 @@ const config: Config = {
         'default': 'cubic-bezier(0.2, 0, 0, 1)',
       },
       animation: {
-        'pulse-subtle': 'pulse-subtle 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'pulse-subtle':    'pulse-subtle 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'slide-in-right':  'slide-in-right 200ms cubic-bezier(0.2, 0, 0, 1)',
       },
       keyframes: {
         'pulse-subtle': {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.4' },
+        },
+        'slide-in-right': {
+          from: { transform: 'translateX(100%)', opacity: '0' },
+          to:   { transform: 'translateX(0)',    opacity: '1' },
         },
       },
     },

@@ -1,33 +1,28 @@
-import logging
 import sys
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from genesis.config import settings
-from genesis.database import engine, Base
+from genesis.database import init_db
+from genesis.utils.logger import get_logger
+from genesis.utils.redis_client import redis_client
 
-logging.basicConfig(
-    level=getattr(logging, settings.log_level),
-    format="%(asctime)s %(levelname)s %(name)s — %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler("logs/genesis.log"),
-    ],
-)
-logger = logging.getLogger("genesis")
+logger = get_logger("genesis")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Genesis starting up (env=%s)", settings.environment)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("Database tables ready")
+    await init_db()
+    await redis_client.connect()
+    logger.info("Genesis ready")
     yield
     logger.info("Genesis shutting down")
-    await engine.dispose()
+    await redis_client.disconnect()
+    logger.info("Genesis stopped")
 
 
 app = FastAPI(
@@ -39,16 +34,22 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"] if settings.environment == "development" else ["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-@app.get("/health")
-async def health() -> dict:
-    return {"status": "ok", "version": "0.1.0", "env": settings.environment}
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc: Exception) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"error": "Not found", "path": str(request.url)})
+
+
+@app.exception_handler(500)
+async def server_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.exception("Unhandled error on %s", request.url)
+    return JSONResponse(status_code=500, content={"error": "Internal server error"})
 
 
 from genesis.api import router as api_router  # noqa: E402

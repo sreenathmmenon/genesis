@@ -2,6 +2,7 @@
 
 import { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
+import { Badge, StatusDot } from '@/components/ui'
 import type { AgentLayer, AgentStatus } from '@/lib/types'
 
 export interface AgentNodeData extends Record<string, unknown> {
@@ -14,161 +15,94 @@ export interface AgentNodeData extends Record<string, unknown> {
   systemPromptPreview: string
 }
 
-const LAYER_COLORS: Record<AgentLayer, string> = {
-  meta:      '#adff2f',
-  build:     '#f97316',
-  validate:  '#38bdf8',
-  ops:       '#a78bfa',
-  generated: '#adff2f',
+// CSS-variable accent per layer — inlined only on the 2px bar which needs a
+// dynamic background; everything else uses Tailwind semantic classes.
+const LAYER_CSS_VAR: Record<AgentLayer, string> = {
+  meta:      'var(--layer-meta)',
+  build:     'var(--layer-build)',
+  validate:  'var(--layer-validate)',
+  ops:       'var(--layer-ops)',
+  generated: 'var(--layer-generated)',
 }
 
-const STATUS_DOT: Record<AgentStatus, { bg: string; pulse: boolean }> = {
-  idle:     { bg: '#6e6e6e', pulse: false },
-  active:   { bg: '#adff2f', pulse: true },
-  error:    { bg: '#ff4444', pulse: false },
-  building: { bg: '#f5a623', pulse: true },
+// Badge variant maps to our existing design-system variants
+const LAYER_BADGE: Record<AgentLayer, 'meta' | 'build' | 'validate' | 'ops' | 'accent'> = {
+  meta:      'meta',
+  build:     'build',
+  validate:  'validate',
+  ops:       'ops',
+  generated: 'accent',
+}
+
+const STATUS_DOT_STATE: Record<AgentStatus, 'active' | 'idle' | 'error' | 'building'> = {
+  active:   'active',
+  idle:     'idle',
+  error:    'error',
+  building: 'building',
 }
 
 function AgentNodeInner({ data, selected }: NodeProps) {
   const d = data as AgentNodeData
-  const accent = LAYER_COLORS[d.layer]
-  const dot = STATUS_DOT[d.status]
+  const accentVar = LAYER_CSS_VAR[d.layer]
 
   return (
     <div
-      style={{
-        width: 140,
-        background: selected ? '#1c1c1c' : '#111111',
-        border: `1px solid ${selected ? accent : '#222222'}`,
-        borderRadius: 5,
-        position: 'relative',
-        fontFamily: 'var(--font-syne, system-ui)',
-        cursor: 'default',
-        transition: 'background 150ms, border-color 150ms',
-      }}
+      className={[
+        'relative w-[140px] rounded-md overflow-hidden',
+        'transition-colors duration-fast ease-default',
+        'cursor-default select-none',
+        selected
+          ? 'bg-surface-3 border border-border-3'
+          : 'bg-surface-1 border border-border-1 hover:bg-surface-2',
+      ].join(' ')}
     >
-      {/* Layer accent line */}
+      {/* Layer accent bar — must be dynamic, uses CSS variable */}
       <div
-        style={{
-          height: 2,
-          background: accent,
-          borderRadius: '5px 5px 0 0',
-        }}
+        className="h-0.5 w-full"
+        style={{ background: accentVar }}
       />
 
-      <div style={{ padding: '8px 10px 8px' }}>
-        {/* Role badge */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            fontSize: 8,
-            fontWeight: 500,
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: accent,
-          }}
-        >
-          {d.layer}
+      <div className="px-[10px] pt-2 pb-2 flex flex-col gap-1">
+        {/* Layer badge — top-right, absolute */}
+        <div className="absolute top-2 right-2">
+          <Badge variant={LAYER_BADGE[d.layer]} className="text-[8px] py-0">
+            {d.layer}
+          </Badge>
         </div>
 
         {/* Agent name */}
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: '#ededed',
-            letterSpacing: '-0.01em',
-            lineHeight: 1.25,
-            marginTop: 4,
-            paddingRight: 28,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <p className="text-md font-semibold text-text-primary tracking-tight leading-tight truncate pr-6 mt-1">
           {d.label}
-        </div>
+        </p>
 
-        {/* Role label */}
-        <div
-          style={{
-            fontSize: 11,
-            color: '#6e6e6e',
-            marginTop: 2,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        {/* Role */}
+        <p className="text-xs text-text-tertiary truncate">
           {d.role}
-        </div>
+        </p>
 
-        {/* Model name */}
-        <div
-          style={{
-            fontSize: 9,
-            color: '#4a4a4a',
-            marginTop: 4,
-            fontFamily: 'var(--font-mono, monospace)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        {/* Model */}
+        <p className="text-xs font-mono text-text-tertiary truncate" style={{ color: 'var(--text-placeholder)' }}>
           {d.model}
-        </div>
+        </p>
 
-        {/* Footer row */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginTop: 8,
-          }}
-        >
-          {/* Tools count */}
-          <span
-            style={{
-              fontSize: 9,
-              color: '#6e6e6e',
-              background: '#1c1c1c',
-              border: '1px solid #222222',
-              borderRadius: 3,
-              padding: '1px 5px',
-            }}
-          >
+        {/* Footer: tools + status */}
+        <div className="flex items-center justify-between mt-1">
+          <Badge variant="default" className="text-[9px]">
             {d.tools.length} tool{d.tools.length !== 1 ? 's' : ''}
-          </span>
-
-          {/* Status dot */}
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              background: dot.bg,
-              display: 'inline-block',
-              flexShrink: 0,
-              ...(dot.pulse
-                ? { animation: 'genesis-pulse 1.5s infinite' }
-                : {}),
-            }}
-          />
+          </Badge>
+          <StatusDot state={STATUS_DOT_STATE[d.status]} />
         </div>
       </div>
 
-      {/* ReactFlow handles */}
+      {/* ReactFlow handles — use CSS variables, not raw hex */}
       <Handle
         type="target"
         position={Position.Left}
         style={{
           width: 8,
           height: 8,
-          background: '#2e2e2e',
-          border: '1px solid #3a3a3a',
+          background: 'var(--border-2)',
+          border: '1px solid var(--border-3)',
         }}
       />
       <Handle
@@ -177,8 +111,8 @@ function AgentNodeInner({ data, selected }: NodeProps) {
         style={{
           width: 8,
           height: 8,
-          background: '#2e2e2e',
-          border: '1px solid #3a3a3a',
+          background: 'var(--border-2)',
+          border: '1px solid var(--border-3)',
         }}
       />
     </div>
