@@ -23,9 +23,10 @@ def _now_iso() -> str:
 async def execute_deployed_workflow(
     workflow_id: str,
     input_data: dict[str, Any] | None = None,
+    run_id: str | None = None,
 ) -> dict[str, Any]:
     """Execute a deployed workflow and persist the run record."""
-    run_id = str(uuid.uuid4())
+    run_id = run_id or str(uuid.uuid4())
     started_at = datetime.now(tz=timezone.utc)
 
     async with async_session() as session:

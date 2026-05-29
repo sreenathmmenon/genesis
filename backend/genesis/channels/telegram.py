@@ -66,15 +66,27 @@ class TelegramBridge(ChannelBridge):
         if not self._app or not settings.telegram_chat_id:
             logger.debug("Telegram send skipped (not configured): %s", text[:80])
             return
+        # Truncate very long messages
+        if len(text) > 4000:
+            text = text[:3997] + "…"
         try:
             await self._app.bot.send_message(
                 chat_id=settings.telegram_chat_id,
                 text=text,
                 **kwargs,
             )
-        except Exception as exc:
-            logger.error("Telegram send_message failed: %s", exc)
-            raise
+        except Exception as first_exc:
+            # Retry as plain text (no parse_mode) to avoid Markdown entity errors
+            logger.warning("Telegram send retrying as plain text: %s", first_exc)
+            try:
+                plain_kwargs = {k: v for k, v in kwargs.items() if k != "parse_mode"}
+                await self._app.bot.send_message(
+                    chat_id=settings.telegram_chat_id,
+                    text=text,
+                    **plain_kwargs,
+                )
+            except Exception as exc:
+                logger.error("Telegram send_message failed: %s", exc)
 
     async def send_approval_request(self, build_id: str, message: str) -> None:
         if not self._app or not settings.telegram_chat_id:

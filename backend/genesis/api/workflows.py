@@ -29,7 +29,10 @@ def _now() -> datetime:
 async def create_workflow(
     body: WorkflowCreate, db: AsyncSession = Depends(get_db)
 ) -> Workflow:
-    wf = Workflow(**body.model_dump())
+    data = body.model_dump()
+    wf = Workflow(**data)
+    if data.get("graph_json"):
+        wf.status = WorkflowStatus.active
     db.add(wf)
     await db.flush()
     await db.refresh(wf)
@@ -118,10 +121,10 @@ async def run_workflow(
         raise HTTPException(status_code=409, detail=f"Workflow status is '{wf.status.value}' — cannot run")
 
     from genesis.utils.workflow_executor import execute_deployed_workflow
-    task = asyncio.create_task(execute_deployed_workflow(str(workflow_id)))
-    run_id = task  # fire and forget; run_id obtained via websocket
-    logger.info("Triggered run for workflow %s", workflow_id)
-    return {"workflow_id": str(workflow_id), "status": "running"}
+    run_id = str(uuid.uuid4())
+    asyncio.create_task(execute_deployed_workflow(str(workflow_id), run_id=run_id))
+    logger.info("Triggered run for workflow %s run_id=%s", workflow_id, run_id)
+    return {"workflow_id": str(workflow_id), "run_id": run_id, "status": "running"}
 
 
 @router.post("/{workflow_id}/schedule", response_model=WorkflowRead)
