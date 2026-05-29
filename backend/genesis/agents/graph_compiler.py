@@ -91,9 +91,18 @@ async def compile_workflow_from_json(graph_json: dict[str, Any]):
         tool_map = {t.name: t for t in tools}
 
         node_label = sp[:40].replace("\n", " ")
+        _is_terminal = bool(tools) and all(t in _TERMINAL_TOOLS for t in tool_names)
         system_prompt = sp
         if tools:
-            system_prompt = sp + f"\n\nIMPORTANT: You MUST call one of your available tools to complete this task. Available tools: {tool_names}. Do not just respond with text — you MUST make a tool call."
+            if _is_terminal:
+                system_prompt = (
+                    sp + f"\n\nIMPORTANT: You have received data from previous agents in your context below. "
+                    f"Use it to compose and send your message immediately via {tool_names[0]}. "
+                    f"Do NOT ask for more input — all the data you need is in the context. "
+                    f"You MUST call {tool_names[0]} now."
+                )
+            else:
+                system_prompt = sp + f"\n\nIMPORTANT: You MUST call one of your available tools to complete this task. Available tools: {tool_names}. Do not just respond with text — you MUST make a tool call."
 
         async def _node(state: WorkflowState) -> dict[str, Any]:
             from langchain_core.messages import ToolMessage
@@ -104,7 +113,7 @@ async def compile_workflow_from_json(graph_json: dict[str, Any]):
                 for k, v in prior.items():
                     short_key = k[:60] if len(k) > 60 else k
                     context_parts.append(f"=== {short_key} ===\n{str(v)[:3000]}")
-                context = "\n\n".join(context_parts)
+                context = "Data from previous agents:\n\n" + "\n\n".join(context_parts)
             else:
                 context = json.dumps(state.get("input_data", {}))
             logger.info("Node [%s] starting — prior keys: %s", node_label, list(prior.keys()))
@@ -170,7 +179,12 @@ async def compile_workflow_from_json(graph_json: dict[str, Any]):
 
     for node in nodes:
         node_id: str = node["id"]
-        model_name: str = node.get("model_name", "claude-sonnet-4-5")
+        raw_model: str = node.get("model_name", "claude-sonnet-4-5")
+        # Fall back to sonnet if model name is not in the allowed list
+        from genesis.utils.model_router import ALLOWED_MODELS
+        model_name = raw_model if raw_model in ALLOWED_MODELS else "claude-sonnet-4-5"
+        if model_name != raw_model:
+            logger.warning("Node %s: unknown model '%s' — using claude-sonnet-4-5", node_id, raw_model)
         system_prompt: str = node.get("system_prompt", "You are a helpful agent.")
         tool_names: list[str] = node.get("tools") or []
         llm = get_llm(model_name)

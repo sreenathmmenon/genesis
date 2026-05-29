@@ -94,6 +94,21 @@ AUTOMATION:
 
 Set "tools" to a list of tool names the agent will need. Empty list for agents that only reason/summarize.
 Nodes that deliver final output (telegram_send, slack_send, email_send) should have ONLY that one messaging tool.
+
+Available model names (use EXACTLY one of these strings for model_name):
+- "claude-sonnet-4-5"  ← DEFAULT, use this for most nodes
+- "claude-haiku-4-5-20251001"  ← lightweight, use for simple formatting/routing nodes
+- "claude-opus-4-7"  ← most capable, use only for complex reasoning nodes
+Do NOT invent model names. Use exactly the strings above.
+
+CRITICAL RULE for messaging nodes (telegram_send, slack_send, email_send):
+The system_prompt for the final delivery node MUST instruct the agent to:
+1. Read ALL the data from previous nodes in the context provided
+2. Format it into a clean human-readable message
+3. Send it immediately using the messaging tool
+4. NOT ask for user input or wait for data — the data is in the context
+Example system_prompt for a Telegram delivery node:
+"You are the Telegram Reporter. You receive output from previous agents in your context. Format all the results into a clear, well-structured Telegram message and send it immediately using telegram_send. Do not ask for input — use the data provided in your context."
 """
 
 

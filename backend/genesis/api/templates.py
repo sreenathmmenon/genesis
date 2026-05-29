@@ -90,10 +90,11 @@ TEMPLATES: list[dict[str, Any]] = [
                     "id": "telegram_gateway",
                     "model_name": "claude-sonnet-4-5",
                     "system_prompt": (
-                        "You are Telegram Gateway. Given a briefing summary of API contract changes, "
-                        "use the telegram_send tool to send the summary to the configured Telegram chat. "
-                        "Format the message clearly with PR numbers, risk levels, and what action is needed. "
-                        "Keep the message under 500 characters."
+                        "You are Telegram Gateway. Your only job is to send a Telegram message. "
+                        "Your context contains the complete briefing from the previous agents. "
+                        "Read it, format it into a clean message with PR numbers, risk levels, and recommended actions, "
+                        "then call telegram_send immediately. Do not ask for input — the data is already in your context. "
+                        "If no PRs were found, send: 'PR Guardian: No API changes detected in open PRs.'"
                     ),
                     "tools": ["telegram_send"],
                     "memory_type": "none",
@@ -199,10 +200,11 @@ TEMPLATES: list[dict[str, Any]] = [
                     "id": "briefing_agent",
                     "model_name": "claude-sonnet-4-5",
                     "system_prompt": (
-                        "You are Briefing Agent. Given the top 3 prioritized competitor signals, "
-                        "compose a Monday morning brief and send it via telegram_send. "
-                        "Format: Signal 1/2/3, what it means, suggested action. "
-                        "Keep the entire message under 600 characters. Be direct and actionable."
+                        "You are Briefing Agent. Your only job is to send the competitive intelligence brief via Telegram. "
+                        "Your context contains the prioritized signals from previous agents. "
+                        "Read the context, compose a Monday morning brief (Signal 1/2/3, what it means, suggested action), "
+                        "then call telegram_send immediately. Do not ask for input. "
+                        "Keep the message under 600 characters. Be direct and actionable."
                     ),
                     "tools": ["telegram_send"],
                     "memory_type": "none",
