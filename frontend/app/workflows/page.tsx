@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Badge, Button, EmptyState, Label, StatusDot } from '@/components/ui'
+import Link from 'next/link'
+import { Nav } from '@/components/shared/Nav'
+import { Badge, Button, EmptyState, StatusDot } from '@/components/ui'
 import { api } from '@/lib/api'
 import { useWebSocket } from '@/lib/websocket'
 import type { Workflow, SchedulerJob } from '@/lib/types'
@@ -32,97 +34,165 @@ function statusDotState(status: string): 'active' | 'idle' | 'error' | 'building
   return map[status] ?? 'idle'
 }
 
+type RunCardStatus = 'idle' | 'running' | 'completed' | 'failed'
+
 interface RunState {
-  status: 'idle' | 'running' | 'completed' | 'failed'
+  status: RunCardStatus
 }
 
-function WorkflowRow({
+function AgentCard({
   wf,
   nextRun,
   runState,
   onRun,
-  onRemoveSchedule,
 }: {
   wf: Workflow
   nextRun: string | null
   runState: RunState
   onRun: () => void
-  onRemoveSchedule: () => void
 }) {
+  const isRunning = runState.status === 'running'
+  const isDone = runState.status === 'completed'
+
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 16,
-      padding: '14px 20px',
-      borderBottom: '1px solid var(--border-0)',
-    }}>
-      {/* Status dot + name */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 2 }}>
-        <StatusDot state={statusDotState(wf.status)} />
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+    <div
+      className={`card card-hover${isRunning ? ' glow-running' : ''}`}
+      style={{
+        padding: 0,
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'background 150ms, box-shadow 150ms, border-color 150ms',
+      }}
+    >
+      {/* Top accent bar */}
+      <div style={{
+        height: 3,
+        background: isRunning ? 'var(--accent)' : 'var(--border-1)',
+        transition: 'background 300ms',
+        flexShrink: 0,
+      }} />
+
+      <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12, flex: 1 }}>
+
+        {/* Row 1: name + status dot */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+          <h3 style={{
+            fontSize: 15,
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            letterSpacing: '-0.01em',
+            lineHeight: 1.3,
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            flex: 1,
+          }}>
             {wf.name}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 320 }}>
-            {wf.intent}
-          </div>
+          </h3>
+          <StatusDot state={statusDotState(wf.status)} />
         </div>
-      </div>
 
-      {/* Schedule */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {wf.schedule_expr ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {/* Row 2: intent text */}
+        <p style={{
+          fontSize: 12,
+          color: 'var(--text-secondary)',
+          lineHeight: 1.6,
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+          minHeight: '2.6em',
+        }}>
+          {wf.intent || wf.description || 'No description provided'}
+        </p>
+
+        {/* Row 3: schedule + next run */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {wf.schedule_expr ? (
+            <>
               <Badge variant="info">{wf.schedule_expr}</Badge>
-              <button
-                onClick={onRemoveSchedule}
-                style={{ fontSize: 11, color: 'var(--text-tertiary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                title="Remove schedule"
-              >
-                ✕
-              </button>
-            </div>
-            <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-              Next: {formatNextRun(nextRun)}
-            </span>
-          </div>
-        ) : (
-          <Badge variant="default">On demand</Badge>
-        )}
+              <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                Next: {formatNextRun(nextRun)}
+              </span>
+            </>
+          ) : (
+            <Badge variant="default">On demand</Badge>
+          )}
+          {isRunning && (
+            <Badge variant="accent">
+              <span style={{
+                display: 'inline-block',
+                width: 5,
+                height: 5,
+                borderRadius: '50%',
+                background: 'var(--accent)',
+                marginRight: 4,
+                animation: 'pulse-subtle 1.5s infinite',
+              }} />
+              Running
+            </Badge>
+          )}
+          {isDone && (
+            <Badge variant="success">Done ✓</Badge>
+          )}
+          {runState.status === 'failed' && (
+            <Badge variant="error">Failed</Badge>
+          )}
+        </div>
+
       </div>
 
-      {/* Run status */}
-      <div style={{ width: 80, flexShrink: 0 }}>
-        {runState.status === 'running' && (
-          <Badge variant="accent">Running</Badge>
-        )}
-        {runState.status === 'completed' && (
-          <Badge variant="success">Done</Badge>
-        )}
-        {runState.status === 'failed' && (
-          <Badge variant="error">Failed</Badge>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+      {/* Bottom action row */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '12px 20px',
+        borderTop: '1px solid var(--border-0)',
+        background: 'var(--surface-0)',
+        flexShrink: 0,
+      }}>
         <Button
           variant="secondary"
           size="sm"
           onClick={onRun}
-          disabled={runState.status === 'running'}
+          disabled={isRunning}
+          style={{ minWidth: 72 }}
         >
-          {runState.status === 'running' ? 'Running…' : 'Run Now'}
+          {isRunning ? (
+            <>
+              <span style={{
+                display: 'inline-block',
+                width: 8,
+                height: 8,
+                border: '1.5px solid var(--text-tertiary)',
+                borderTopColor: 'var(--text-primary)',
+                borderRadius: '50%',
+                animation: 'spin 600ms linear infinite',
+              }} />
+              Running
+            </>
+          ) : isDone ? 'Done ✓' : 'Run Now'}
         </Button>
-        <a
+
+        <div style={{ flex: 1 }} />
+
+        <Link
           href={`/canvas?workflow_id=${wf.id}`}
           className="btn btn--ghost btn--sm"
           style={{ textDecoration: 'none' }}
         >
-          Canvas
-        </a>
+          View
+        </Link>
+        <Link
+          href={`/history?workflow_id=${wf.id}`}
+          className="btn btn--ghost btn--sm"
+          style={{ textDecoration: 'none' }}
+        >
+          History
+        </Link>
       </div>
     </div>
   )
@@ -154,7 +224,7 @@ export default function WorkflowsPage() {
         setRunStates((prev) => ({ ...prev, [wid]: { status: 'running' } }))
       } else if (payload.event === 'run_completed') {
         setRunStates((prev) => ({ ...prev, [wid]: { status: 'completed' } }))
-        setTimeout(() => setRunStates((prev) => ({ ...prev, [wid]: { status: 'idle' } })), 4000)
+        setTimeout(() => setRunStates((prev) => ({ ...prev, [wid]: { status: 'idle' } })), 3000)
       } else if (payload.event === 'run_failed') {
         setRunStates((prev) => ({ ...prev, [wid]: { status: 'failed' } }))
         setTimeout(() => setRunStates((prev) => ({ ...prev, [wid]: { status: 'idle' } })), 6000)
@@ -170,16 +240,7 @@ export default function WorkflowsPage() {
     } catch (err) {
       console.error(err)
       setRunStates((prev) => ({ ...prev, [wfId]: { status: 'failed' } }))
-    }
-  }
-
-  async function handleRemoveSchedule(wfId: string) {
-    try {
-      const updated = await api.removeSchedule(wfId) as Workflow
-      setWorkflows((prev) => prev.map((w) => (w.id === wfId ? updated : w)))
-      setJobs((prev) => prev.filter((j) => !j.job_id.includes(wfId)))
-    } catch (err) {
-      console.error(err)
+      setTimeout(() => setRunStates((prev) => ({ ...prev, [wfId]: { status: 'idle' } })), 4000)
     }
   }
 
@@ -188,97 +249,84 @@ export default function WorkflowsPage() {
     return job?.next_run ?? null
   }
 
-  const activeCount = workflows.filter((w) => w.status === 'active').length
-  const scheduledCount = workflows.filter((w) => w.schedule_expr).length
-
   return (
-    <div className="layout-root">
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--surface-0)' }}>
+      <Nav />
 
-      {/* Toolbar */}
-      <div className="layout-toolbar">
-        <a href="/canvas" style={{ fontWeight: 600, fontSize: 14, color: 'var(--accent)', textDecoration: 'none', letterSpacing: '-0.01em' }}>
-          Genesis
-        </a>
-        <div style={{ width: 1, height: 16, background: 'var(--border-1)', flexShrink: 0 }} />
-        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>My Agents</span>
-        <div style={{ flex: 1 }} />
-        <a href="/history" className="btn btn--ghost btn--sm" style={{ textDecoration: 'none' }}>Run History</a>
-        <a href="/templates" className="btn btn--ghost btn--sm" style={{ textDecoration: 'none' }}>Templates</a>
-        <a href="/canvas" className="btn btn--secondary btn--sm" style={{ textDecoration: 'none' }}>New Build</a>
-      </div>
+      <div className="page-content">
+        <div style={{ maxWidth: 960, width: '100%', margin: '0 auto', padding: '40px 32px 64px' }}>
 
-      {/* Stats bar */}
-      {workflows.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24, padding: '12px 20px', borderBottom: '1px solid var(--border-1)', background: 'var(--surface-1)', flexShrink: 0 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Label>Deployed</Label>
-            <span style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1 }}>{workflows.length}</span>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
+            <div>
+              <h1 style={{ fontSize: 24, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 4 }}>
+                My Agents
+              </h1>
+              <p style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
+                {loading ? 'Loading…' : `${workflows.length} deployed`}
+              </p>
+            </div>
+            <Link href="/canvas" className="btn btn--primary">
+              New Agent +
+            </Link>
           </div>
-          <div style={{ width: 1, height: 32, background: 'var(--border-1)' }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Label>Active</Label>
-            <span style={{ fontSize: 20, fontWeight: 600, color: 'var(--accent)', lineHeight: 1 }}>{activeCount}</span>
-          </div>
-          <div style={{ width: 1, height: 32, background: 'var(--border-1)' }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Label>Scheduled</Label>
-            <span style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1 }}>{scheduledCount}</span>
-          </div>
-        </div>
-      )}
 
-      {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', width: '100%' }}>
+          {/* Loading state */}
+          {loading && (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
+              <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Loading agents…</span>
+            </div>
+          )}
 
-          {/* Column headers */}
-          {workflows.length > 0 && (
+          {/* Empty state */}
+          {!loading && workflows.length === 0 && (
             <div style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 16,
-              padding: '10px 20px',
-              borderBottom: '1px solid var(--border-1)',
-              background: 'var(--surface-1)',
-              position: 'sticky',
-              top: 0,
+              justifyContent: 'center',
+              minHeight: 400,
             }}>
-              <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)', flex: 2 }}>Agent / Workflow</span>
-              <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)', flex: 1 }}>Schedule</span>
-              <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)', width: 80, flexShrink: 0 }}>Status</span>
-              <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)', width: 140, flexShrink: 0, textAlign: 'right' }}>Actions</span>
-            </div>
-          )}
-
-          {loading && (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '64px 0' }}>
-              <Label>Loading agents…</Label>
-            </div>
-          )}
-
-          {!loading && workflows.length === 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
               <EmptyState
                 icon="🤖"
                 title="No agents deployed yet"
                 body="Build and deploy your first agent workflow to see it here"
-                style={{ paddingTop: 48, paddingBottom: 48 }}
+                action={
+                  <Link href="/canvas" className="btn btn--primary btn--sm">
+                    Build your first agent →
+                  </Link>
+                }
               />
             </div>
           )}
 
-          {workflows.map((wf) => (
-            <WorkflowRow
-              key={wf.id}
-              wf={wf}
-              nextRun={getNextRun(wf.id)}
-              runState={runStates[wf.id] ?? { status: 'idle' }}
-              onRun={() => handleRun(wf.id)}
-              onRemoveSchedule={() => handleRemoveSchedule(wf.id)}
-            />
-          ))}
+          {/* Agent cards grid */}
+          {!loading && workflows.length > 0 && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
+              gap: 16,
+            }}>
+              {workflows.map((wf) => (
+                <AgentCard
+                  key={wf.id}
+                  wf={wf}
+                  nextRun={getNextRun(wf.id)}
+                  runState={runStates[wf.id] ?? { status: 'idle' }}
+                  onRun={() => handleRun(wf.id)}
+                />
+              ))}
+            </div>
+          )}
+
         </div>
       </div>
+
+      {/* Spin keyframe injected inline */}
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   )
 }

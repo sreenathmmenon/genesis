@@ -1,6 +1,6 @@
 import type { Agent } from './types'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8001'
 
 const json = (res: Response) => {
   if (!res.ok) throw new Error(`API ${res.status}: ${res.url}`)
@@ -77,6 +77,14 @@ export const api = {
 
   getSchedulerJobs: () =>
     fetch(`${API_BASE}/api/v1/scheduler/jobs`).then(json),
+
+  // ── Workflow-scoped runs ───────────────────────────────────────────────────
+  getWorkflowRuns: (workflowId: string) =>
+    fetch(`${API_BASE}/api/v1/runs?workflow_id=${workflowId}`).then(json),
+
+  // ── Tool names ─────────────────────────────────────────────────────────────
+  getToolNames: () =>
+    fetch(`${API_BASE}/api/v1/tools/names`).then(json),
 
   // ── Health ─────────────────────────────────────────────────────────────────
   health: () =>
