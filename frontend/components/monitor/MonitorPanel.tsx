@@ -128,8 +128,8 @@ function MessagesTab({ messages }: { messages: AgentMessage[] }) {
                 {msg.to_agent}
               </span>
               <div style={{ flex: 1 }} />
-              <Badge variant={MSG_BADGE[msg.type] ?? 'default'}>
-                {msg.type.replace(/_/g, ' ')}
+              <Badge variant={MSG_BADGE[msg.type ?? ''] ?? 'default'}>
+                {(msg.type ?? 'message').replace(/_/g, ' ')}
               </Badge>
             </div>
             <p style={{ fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.5, wordBreak: 'break-word', textAlign: 'left', width: '100%' }}>
