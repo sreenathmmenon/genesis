@@ -25,8 +25,11 @@ const MSG_BADGE: Record<string, MsgVariant> = {
   agent_output: 'accent',
 }
 
-function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('en', {
+function fmtTime(iso: string | undefined) {
+  if (!iso) return '--:--:--'
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return '--:--:--'
+  return d.toLocaleTimeString('en', {
     hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit',
   })
 }
@@ -48,9 +51,9 @@ function BuildLogTab({ logs }: { logs: BuildLog[] }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', height: '100%' }}>
-      {logs.map((log) => (
+      {logs.map((log, idx) => (
         <div
-          key={log.id}
+          key={log.id ?? `log-${idx}`}
           style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 16px', borderBottom: '1px solid var(--border-0)' }}
         >
           <span style={{ fontSize: 13, flexShrink: 0, marginTop: 2 }} aria-hidden>
@@ -209,13 +212,30 @@ export function MonitorPanel() {
   const { subscribe } = useWebSocket()
 
   useEffect(() => {
-    const u1 = subscribe('agent_message', (p) => addAgentMessage(p as AgentMessage))
+    const u1 = subscribe('agent_message', (p) => {
+      const raw = p as Record<string, unknown>
+      const msg: AgentMessage = {
+        id: (raw.id as string) ?? `msg-${Date.now()}`,
+        timestamp: (raw.timestamp as string) ?? new Date().toISOString(),
+        from_agent: (raw.from_agent as string) ?? (raw.sender_agent as string) ?? 'agent',
+        to_agent: (raw.to_agent as string) ?? (raw.receiver_agent as string) ?? 'orchestrator',
+        content: (raw.content as string) ?? '',
+        type: (raw.type as AgentMessage['type']) ?? (raw.message_type as AgentMessage['type']) ?? 'agent_output',
+      }
+      addAgentMessage(msg)
+    })
     const u2 = subscribe('build_progress', (p) => {
-      const payload = p as BuildLog & { status?: string; action?: string }
-      addBuildLog(payload as BuildLog)
-      // Keep toolbar status in sync
-      if (payload?.status) setBuildStatus(payload.status)
-      if (payload?.action === 'deployed') setBuildStatus('deployed')
+      const payload = p as Record<string, unknown>
+      const log: BuildLog = {
+        id: `${payload.build_id ?? 'log'}-${payload.status ?? payload.action ?? Date.now()}-${Date.now()}`,
+        timestamp: (payload.timestamp as string) ?? new Date().toISOString(),
+        stage: (payload.status as string) ?? (payload.action as string) ?? 'build',
+        message: (payload.detail as string) ?? (payload.message as string) ?? (payload.action as string) ?? (payload.status as string) ?? '',
+        level: (payload.level as BuildLog['level']) ?? 'info',
+      }
+      addBuildLog(log)
+      if (payload.status) setBuildStatus(payload.status as string)
+      if (payload.action === 'deployed') setBuildStatus('deployed')
     })
     const u3 = subscribe('monitor_update', (p) => {
       const { agent, tokens, cost } = p as { agent: string; tokens: number; cost: number }
