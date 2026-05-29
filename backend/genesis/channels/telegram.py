@@ -74,6 +74,7 @@ class TelegramBridge(ChannelBridge):
             )
         except Exception as exc:
             logger.error("Telegram send_message failed: %s", exc)
+            raise
 
     async def send_approval_request(self, build_id: str, message: str) -> None:
         if not self._app or not settings.telegram_chat_id:

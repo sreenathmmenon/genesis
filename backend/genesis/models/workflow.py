@@ -1,7 +1,8 @@
 import enum
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Enum, String, Text
+from sqlalchemy import DateTime, Enum, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -37,6 +38,8 @@ class Workflow(Base):
     canvas_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     template_name: Mapped[str | None] = mapped_column(nullable=True)
     schedule_expr: Mapped[str | None] = mapped_column(String, nullable=True)
+    repair_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_repair_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     agents: Mapped[list["Agent"]] = relationship(
         "Agent",

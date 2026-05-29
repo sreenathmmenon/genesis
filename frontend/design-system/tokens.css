@@ -225,11 +225,6 @@ h2 { font-size: var(--text-xl); }
 h3 { font-size: var(--text-lg); }
 h4 { font-size: var(--text-md); font-weight: var(--weight-medium); }
 
-p, span, div {
-  font-size: var(--text-base);
-  color: var(--text-secondary);
-}
-
 code, pre, kbd {
   font-family: var(--font-mono);
   font-size: var(--text-sm);

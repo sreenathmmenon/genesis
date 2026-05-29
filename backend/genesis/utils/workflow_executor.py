@@ -77,6 +77,10 @@ async def execute_deployed_workflow(
 
         result = await compiled.ainvoke(initial)
         final_output = result.get("intermediate_results", {})
+        logger.info(
+            "Workflow %s run %s — nodes executed: %s",
+            workflow_id, run_id, list(final_output.keys())
+        )
         total_tokens = sum(len(str(v)) // 4 for v in final_output.values())
 
         await redis_client.publish(
@@ -106,6 +110,10 @@ async def execute_deployed_workflow(
             },
         )
 
+        # ── Auto-repair on failure ────────────────────────────────────────────
+        if error and not (input_data or {}).get("_repair_run"):
+            await _attempt_repair(workflow_id, run_id, error, graph_json)
+
     completed_at = datetime.now(tz=timezone.utc)
 
     from genesis.agents.monitor_agent import estimate_cost, record_run_stats
@@ -127,7 +135,7 @@ async def execute_deployed_workflow(
                 run_id=uuid.UUID(run_id),
                 sender_agent="executor",
                 receiver_agent="user",
-                content=str(final_output)[:2000] if not error else error,
+                content=str({k: str(v)[:500] for k, v in final_output.items()})[:8000] if not error else error,
                 message_type=MessageType.agent_output,
             )
         )
@@ -150,3 +158,113 @@ async def execute_deployed_workflow(
         "estimated_cost_usd": estimate_cost(total_tokens),
         "error": error,
     }
+
+
+async def _attempt_repair(
+    workflow_id: str,
+    failed_run_id: str,
+    error: str,
+    graph_json: dict,
+) -> None:
+    """Try to repair the workflow after a failed run."""
+    from genesis.agents.repair_agent import repair_node
+
+    logger.info("Attempting auto-repair for workflow %s", workflow_id)
+
+    nodes: list[dict] = []
+    intent: str = ""
+    workflow_name: str = ""
+    current_repair_count: int = 0
+
+    async with async_session() as session:
+        workflow = await session.get(Workflow, uuid.UUID(workflow_id))
+        if not workflow:
+            return
+        current_repair_count = workflow.repair_count or 0
+        if current_repair_count >= 3:
+            logger.warning(
+                "Workflow %s hit max repair attempts (%d), skipping",
+                workflow_id,
+                current_repair_count,
+            )
+            return
+
+        nodes = (workflow.graph_json or {}).get("nodes", [])
+        if not nodes:
+            return
+
+        intent = workflow.intent or ""
+        workflow_name = workflow.name
+
+    # Try to repair the entry node — most failures originate there
+    target_node = nodes[0]
+    repaired_node = await repair_node(
+        node=target_node,
+        error=error,
+        recent_output="",
+        workflow_intent=intent,
+    )
+
+    if not repaired_node:
+        return
+
+    # Patch the graph_json with the repaired node
+    new_nodes = []
+    for n in nodes:
+        if n.get("id") == repaired_node.get("node_id"):
+            patched = {**n}
+            patched["system_prompt"] = repaired_node["system_prompt"]
+            patched["tools"] = repaired_node.get("tools", n.get("tools") or [])
+            patched["model_name"] = repaired_node.get("model_name", n.get("model_name"))
+            new_nodes.append(patched)
+        else:
+            new_nodes.append(n)
+
+    new_graph_json = {**graph_json, "nodes": new_nodes}
+
+    # Persist the repaired graph and update counters
+    async with async_session() as session:
+        workflow = await session.get(Workflow, uuid.UUID(workflow_id))
+        if not workflow:
+            return
+        workflow.graph_json = new_graph_json
+        workflow.repair_count = (workflow.repair_count or 0) + 1
+        workflow.last_repair_at = datetime.now(tz=timezone.utc)
+
+        failed_run = await session.get(Run, uuid.UUID(failed_run_id))
+        if failed_run:
+            failed_run.repair_attempted = True
+
+        await session.commit()
+
+    repair_reason = repaired_node.get("repair_reason", "unknown issue")
+
+    # Notify user via Telegram (best-effort)
+    try:
+        from genesis.channels.telegram import telegram_bridge
+        await telegram_bridge.send_message(
+            f"Auto-repaired workflow '{workflow_name}'\n\n"
+            f"Issue: {repair_reason}\n\n"
+            f"Retrying now..."
+        )
+    except Exception as tg_exc:
+        logger.debug("Telegram repair notification skipped: %s", tg_exc)
+
+    # Publish repair event to Redis
+    await redis_client.publish(
+        RUN_EVENTS,
+        {
+            "type": "run_event",
+            "event": "workflow_repaired",
+            "workflow_id": workflow_id,
+            "repair_reason": repair_reason,
+            "timestamp": _now_iso(),
+        },
+    )
+
+    # Retry the workflow with the repaired graph
+    logger.info("Retrying workflow %s after repair", workflow_id)
+    await execute_deployed_workflow(
+        workflow_id=workflow_id,
+        input_data={"_repair_run": True},
+    )
