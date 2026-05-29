@@ -24,7 +24,18 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
 
-    # Modal
+    # Slack
+    slack_webhook_url: str = ""
+
+    # Email — SendGrid (preferred) or SMTP fallback
+    sendgrid_api_key: str = ""
+    email_from: str = ""
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+
+    # Modal (code execution sandbox)
     modal_token_id: str = ""
     modal_token_secret: str = ""
 
@@ -33,10 +44,25 @@ class Settings(BaseSettings):
     github_repo_owner: str = ""
     github_repo_name: str = ""
 
+    # Jira
+    jira_url: str = ""
+    jira_email: str = ""
+    jira_api_token: str = ""
+
+    # Notion
+    notion_api_key: str = ""
+
+    # Google Calendar (JSON blob of OAuth2 credentials)
+    google_calendar_credentials_json: str = ""
+
     # App
     secret_key: str = "change_this_to_random_32_char_string"
     environment: str = "development"
     log_level: str = "INFO"
+
+    # Repair Agent
+    repair_model: str = "claude-haiku-4-5-20251001"
+    max_repair_attempts: int = 3
 
     @property
     def sync_database_url(self) -> str:

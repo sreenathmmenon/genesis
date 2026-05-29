@@ -82,26 +82,89 @@ async def compile_workflow_from_json(graph_json: dict[str, Any]):
 
     graph = StateGraph(WorkflowState)
 
+    # Tools that produce side-effects (send/notify) — stop looping after using these
+    from genesis.tools.implementations import TERMINAL_TOOLS as _TERMINAL_TOOLS
+
     def _make_node(sp: str, lm, tool_names: list[str] = []):
         tools = get_tools_for_agent(tool_names)
         bound_lm = lm.bind_tools(tools) if tools else lm
         tool_map = {t.name: t for t in tools}
 
+        node_label = sp[:40].replace("\n", " ")
+        system_prompt = sp
+        if tools:
+            system_prompt = sp + f"\n\nIMPORTANT: You MUST call one of your available tools to complete this task. Available tools: {tool_names}. Do not just respond with text — you MUST make a tool call."
+
         async def _node(state: WorkflowState) -> dict[str, Any]:
+            from langchain_core.messages import ToolMessage
             prior = state.get("intermediate_results", {})
-            context = json.dumps(prior) if prior else str(state.get("input_data", {}))
-            response = await bound_lm.ainvoke(
-                [SystemMessage(content=sp), HumanMessage(content=context)]
-            )
-            results: dict[str, Any] = {sp[:30]: str(response.content)}
-            for tc in getattr(response, "tool_calls", []):
-                tool = tool_map.get(tc["name"])
-                if tool:
-                    try:
-                        result = await tool.ainvoke(tc["args"])
-                        results[tc["name"]] = str(result)
-                    except Exception as exc:
-                        results[tc["name"]] = f"ERROR: {exc}"
+            # Build clean context: list values clearly for the LLM
+            if prior:
+                context_parts = []
+                for k, v in prior.items():
+                    short_key = k[:60] if len(k) > 60 else k
+                    context_parts.append(f"=== {short_key} ===\n{str(v)[:3000]}")
+                context = "\n\n".join(context_parts)
+            else:
+                context = json.dumps(state.get("input_data", {}))
+            logger.info("Node [%s] starting — prior keys: %s", node_label, list(prior.keys()))
+
+            # ReAct loop: allow up to 10 tool call rounds
+            messages = [SystemMessage(content=system_prompt), HumanMessage(content=context)]
+            results: dict[str, Any] = {}
+            max_rounds = 10
+            # For nodes with tools, force at least one tool call in round 0
+            first_round_lm = lm.bind_tools(tools, tool_choice="any") if tools else lm
+
+            for _round in range(max_rounds):
+                try:
+                    lm_to_use = first_round_lm if (_round == 0 and tools) else bound_lm
+                    response = await lm_to_use.ainvoke(messages)
+                except Exception as exc:
+                    logger.error("Node [%s] LLM invoke failed (round %d): %s", node_label, _round, exc)
+                    results[node_label] = f"LLM_ERROR: {exc}"
+                    break
+
+                tool_calls = getattr(response, "tool_calls", [])
+                logger.info("Node [%s] round %d — tool_calls: %s", node_label, _round, [tc["name"] for tc in tool_calls])
+
+                if not tool_calls:
+                    # No more tool calls — capture the final text response
+                    results[node_label] = str(response.content)
+                    break
+
+                # If ALL tool calls in this round are terminal, execute them and stop
+                all_terminal = all(tc["name"] in _TERMINAL_TOOLS for tc in tool_calls)
+
+                # Execute all tool calls in this round
+                messages.append(response)
+                tool_results = []
+                for tc in tool_calls:
+                    tool = tool_map.get(tc["name"])
+                    if tool:
+                        try:
+                            logger.info("Node [%s] calling tool %s", node_label, tc["name"])
+                            result = await tool.ainvoke(tc["args"])
+                            results[tc["name"]] = str(result)
+                            logger.info("Node [%s] tool %s returned: %s", node_label, tc["name"], str(result)[:200])
+                            tool_results.append(ToolMessage(content=str(result), tool_call_id=tc["id"]))
+                        except Exception as exc:
+                            logger.error("Node [%s] tool %s failed: %s", node_label, tc["name"], exc)
+                            err_msg = f"ERROR: {exc}"
+                            results[tc["name"]] = err_msg
+                            tool_results.append(ToolMessage(content=err_msg, tool_call_id=tc["id"]))
+                    else:
+                        logger.warning("Node [%s] tool %s not found", node_label, tc["name"])
+                        tool_results.append(ToolMessage(content="Tool not available", tool_call_id=tc["id"]))
+                messages.extend(tool_results)
+                # Stop after executing terminal tool calls (no need to loop)
+                if all_terminal:
+                    results.setdefault(node_label, "")
+                    break
+            else:
+                logger.warning("Node [%s] hit max tool call rounds (%d)", node_label, max_rounds)
+
+            logger.info("Node [%s] done — result keys: %s", node_label, list(results.keys()))
             return {"intermediate_results": results}
         return _node
 

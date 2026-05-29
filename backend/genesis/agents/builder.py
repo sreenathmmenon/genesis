@@ -64,8 +64,36 @@ Scheduling rules:
 - For on-demand workflows with no time-based trigger, leave "schedule": null on all nodes.
 - Only one node should have a non-null schedule (the entry/trigger node).
 
-Available tools for agents: web_search, github_api, http_request, file_reader, telegram_send, scheduler
+Available tools for agents — choose the RIGHT tool for each node's task:
+
+WEB & HTTP:
+- web_search: Search the web (DuckDuckGo). Returns titles, URLs, excerpts. Use for discovering information.
+- fetch_page: Fetch the FULL text of a specific URL (strips HTML). Use when you need the complete content of a known page — competitor pricing, articles, documentation.
+- browser: Control a real browser for JavaScript-rendered pages (dashboards, LinkedIn, dynamic apps). Slower — use only when fetch_page won't work.
+- http_request: Call any REST API (GET/POST/PUT/PATCH/DELETE). Use for your own APIs, Stripe, analytics, any service with a REST API.
+
+FILES & COMPUTE:
+- file_reader: Read local files (txt, md, json, csv, py). Use for reading uploaded documents, configs, exports.
+- code_executor: Execute Python code in a sandbox. Use for data analysis, calculations, statistics, text processing. Print results to capture them.
+
+MESSAGING (pick ONE per workflow — the final delivery node):
+- telegram_send: Send to Telegram chat. Use when the user has Telegram configured.
+- slack_send: Send to Slack channel via webhook. Use when the user has Slack configured.
+- email_send: Send email via SendGrid or SMTP. Use for formal reports and notifications.
+
+DEVELOPER TOOLS:
+- github_api: Read PRs, issues, commits, diffs, file contents from the configured GitHub repo.
+- jira_api: Search Jira issues, get project status, read tickets. Actions: search, get_issue, get_project, list_projects.
+
+PRODUCTIVITY:
+- notion_read: Read Notion pages or search workspace. Use for reading knowledge base, docs, meeting notes.
+- calendar_read: Read upcoming Google Calendar events. Use for meeting prep or scheduling context.
+
+AUTOMATION:
+- scheduler: Schedule a workflow to run on a cron expression. Use to set up recurring runs.
+
 Set "tools" to a list of tool names the agent will need. Empty list for agents that only reason/summarize.
+Nodes that deliver final output (telegram_send, slack_send, email_send) should have ONLY that one messaging tool.
 """
 
 

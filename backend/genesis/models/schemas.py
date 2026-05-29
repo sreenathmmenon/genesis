@@ -66,6 +66,9 @@ class WorkflowCreate(BaseModel):
     description: str = ""
     intent: str
     template_name: str | None = None
+    graph_json: dict[str, Any] | None = None
+    canvas_json: dict[str, Any] | None = None
+    schedule_expr: str | None = None
 
 
 class WorkflowRead(BaseModel):
