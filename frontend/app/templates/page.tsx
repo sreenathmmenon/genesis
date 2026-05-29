@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Nav } from '@/components/shared/Nav'
-import { Badge, Button, EmptyState, Label } from '@/components/ui'
+import { Badge, EmptyState, Label } from '@/components/ui'
 import { api } from '@/lib/api'
 import type { Template } from '@/lib/types'
 
@@ -61,15 +61,23 @@ function TemplateCard({
           }}>
             {tmpl.display_name}
           </h2>
-          <Button
-            variant="primary"
-            size="sm"
+          <button
             onClick={onDeploy}
             disabled={deploying}
-            style={{ flexShrink: 0 }}
+            style={{
+              padding: '6px 16px', fontSize: 12, fontWeight: 500,
+              background: 'transparent',
+              color: deploying ? 'var(--text-tertiary)' : 'var(--text-primary)',
+              border: `1px solid ${deploying ? 'var(--border-1)' : 'var(--border-2)'}`,
+              borderRadius: 4, cursor: deploying ? 'not-allowed' : 'pointer',
+              flexShrink: 0, opacity: deploying ? 0.5 : 1,
+              fontFamily: 'inherit', transition: 'background 120ms, border-color 120ms, color 120ms',
+            }}
+            onMouseEnter={e => { if (!deploying) { const el = e.currentTarget as HTMLElement; el.style.background = 'var(--surface-2)'; el.style.borderColor = 'var(--accent-border)'; el.style.color = 'var(--accent-text)' } }}
+            onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'transparent'; el.style.borderColor = deploying ? 'var(--border-1)' : 'var(--border-2)'; el.style.color = deploying ? 'var(--text-tertiary)' : 'var(--text-primary)' }}
           >
             {deploying ? 'Deploying…' : 'Deploy →'}
-          </Button>
+          </button>
         </div>
 
         {/* Description */}
@@ -87,20 +95,16 @@ function TemplateCard({
         </p>
       </div>
 
-      {/* Intent preview — code-style box with lime left border */}
+      {/* Intent preview */}
       <div style={{
-        margin: '0 24px',
-        borderLeft: '3px solid var(--accent)',
-        background: 'var(--accent-dim)',
-        borderRadius: '0 4px 4px 0',
-        padding: '10px 14px',
-        marginBottom: 16,
+        margin: '0 24px 16px',
+        borderLeft: '2px solid var(--border-2)',
+        padding: '8px 14px',
       }}>
         <p style={{
           fontSize: 12,
-          fontFamily: 'var(--font-mono)',
-          color: 'var(--accent-text)',
-          lineHeight: 1.6,
+          color: 'var(--text-secondary)',
+          lineHeight: 1.65,
           fontStyle: 'italic',
           margin: 0,
         }}>
@@ -159,18 +163,12 @@ export default function TemplatesPage() {
         <div style={{ maxWidth: 840, width: '100%', margin: '0 auto', padding: '40px 32px 64px' }}>
 
           {/* Page header */}
-          <div style={{ marginBottom: 36 }}>
-            <h1 style={{
-              fontSize: 24,
-              fontWeight: 600,
-              color: 'var(--text-primary)',
-              letterSpacing: '-0.02em',
-              marginBottom: 6,
-            }}>
+          <div style={{ marginBottom: 32 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 4, lineHeight: 1.2 }}>
               Templates
             </h1>
-            <p style={{ fontSize: 13, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
-              Pre-built agent workflows, ready to deploy
+            <p style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+              Pre-built agent workflows, ready to deploy in one click
             </p>
           </div>
 

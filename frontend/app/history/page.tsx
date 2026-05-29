@@ -305,13 +305,18 @@ export default function HistoryPage() {
         <div style={{ maxWidth: 1100, width: '100%', margin: '0 auto', padding: '40px 32px 64px', flex: 1, display: 'flex', flexDirection: 'column' }}>
 
           {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 32 }}>
-            <h1 style={{ fontSize: 24, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-              Run History
-            </h1>
-            {runs.length > 0 && (
-              <Badge variant="default">{runs.length} runs</Badge>
-            )}
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <h1 style={{ fontSize: 22, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                Run History
+              </h1>
+              {runs.length > 0 && (
+                <span style={{ fontSize: 11, color: 'var(--text-tertiary)', background: 'var(--surface-2)', border: '1px solid var(--border-1)', borderRadius: 3, padding: '2px 7px' }}>
+                  {runs.length} runs
+                </span>
+              )}
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>All workflow executions with output and cost breakdown</p>
           </div>
 
           {/* Table container */}

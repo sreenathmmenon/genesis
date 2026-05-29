@@ -142,18 +142,28 @@ export function Nav() {
         ))}
       </div>
 
-      {/* Bottom: version badge */}
+      {/* Bottom */}
       <div style={{
         padding: '12px 16px',
         borderTop: '1px solid var(--border-0)',
         flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
       }}>
         <span style={{
           fontSize: 10,
           fontFamily: 'var(--font-mono)',
           color: 'var(--text-tertiary)',
           letterSpacing: '0.06em',
-        }}>v0.1</span>
+          opacity: 0.5,
+        }}>genesis v0.1</span>
+        <span style={{
+          width: 6, height: 6, borderRadius: '50%',
+          background: 'var(--success)',
+          boxShadow: '0 0 0 2px #062010',
+          display: 'inline-block',
+        }} title="Backend connected" />
       </div>
     </nav>
   )

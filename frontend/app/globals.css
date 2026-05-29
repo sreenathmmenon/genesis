@@ -116,13 +116,14 @@
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
   .btn--primary {
-    background: var(--accent, #adff2f);
-    color: #0a0a0a;
-    border-color: var(--accent, #adff2f);
+    background: var(--accent-dim, #1a2400);
+    color: var(--accent-text, #8ed022);
+    border-color: var(--accent-border, #3a5500);
   }
   .btn--primary:hover:not(:disabled) {
-    background: #c4ff3d;
-    border-color: #c4ff3d;
+    background: #243000;
+    border-color: #5a7a00;
+    color: #adff2f;
   }
 
   .btn--secondary {

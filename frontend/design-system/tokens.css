@@ -161,9 +161,9 @@
   --input-placeholder: var(--text-placeholder);
 
   /* Buttons */
-  --btn-primary-bg:     var(--accent);
-  --btn-primary-text:   var(--text-inverse);
-  --btn-primary-hover:  #c4ff3d;
+  --btn-primary-bg:     var(--accent-dim);
+  --btn-primary-text:   var(--accent-text);
+  --btn-primary-hover:  #243000;
   --btn-secondary-bg:   var(--surface-2);
   --btn-secondary-text: var(--text-secondary);
   --btn-secondary-hover: var(--surface-3);
@@ -343,9 +343,9 @@ code, pre, kbd {
 .btn--primary {
   background: var(--btn-primary-bg);
   color: var(--btn-primary-text);
-  border-color: var(--btn-primary-bg);
+  border-color: var(--accent-border);
 }
-.btn--primary:hover:not(:disabled) { background: var(--btn-primary-hover); }
+.btn--primary:hover:not(:disabled) { background: var(--btn-primary-hover); border-color: #5a7a00; color: var(--accent); }
 
 .btn--secondary {
   background: var(--btn-secondary-bg);
