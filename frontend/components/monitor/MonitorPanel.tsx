@@ -16,6 +16,30 @@ const STAGE_EMOJI: Record<string, string> = {
   deployed:          '🚀',
 }
 
+// Human-readable stage label
+const STAGE_LABEL: Record<string, string> = {
+  architecting:      'Architecting',
+  decomposing:       'Decomposing intent',
+  building:          'Building agents',
+  critiquing:        'Reviewing design',
+  validating:        'Validating',
+  awaiting_approval: 'Awaiting approval',
+  deployed:          'Deployed',
+  failed:            'Failed',
+}
+
+// Dot colour per stage
+const STAGE_DOT: Record<string, string> = {
+  architecting:      '#6366F1',
+  decomposing:       '#F59E0B',
+  building:          '#3B82F6',
+  critiquing:        '#8B5CF6',
+  validating:        '#14B8A6',
+  awaiting_approval: '#F97316',
+  deployed:          '#16A34A',
+  failed:            '#EF4444',
+}
+
 type MsgVariant = 'default' | 'accent' | 'info' | 'success' | 'ops'
 const MSG_BADGE: Record<string, MsgVariant> = {
   state_update: 'info',
@@ -34,49 +58,96 @@ function fmtTime(iso: string | undefined) {
   })
 }
 
-function BuildLogTab({ logs }: { logs: BuildLog[] }) {
+function LiveFeedTab({ logs }: { logs: BuildLog[] }) {
   const endRef = useRef<HTMLDivElement>(null)
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [logs.length])
 
   if (logs.length === 0) {
     return (
-      <EmptyState
-        icon="🏗"
-        title="Build log empty"
-        body="Build log will appear here when you start a build"
-        style={{ height: '100%', paddingTop: 48, paddingBottom: 48 }}
-      />
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        height: '100%', padding: '48px 20px', textAlign: 'center', gap: 12,
+      }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: 10,
+          background: '#F0F9FF', border: '1px solid #BAE6FD',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+        }}>⬡</div>
+        <p style={{ fontSize: 13, fontWeight: 500, color: '#64748B' }}>Live feed</p>
+        <p style={{ fontSize: 12, color: '#94A3B8', maxWidth: 200, lineHeight: 1.6 }}>
+          Start a build to watch your agents reason in real time
+        </p>
+      </div>
     )
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', height: '100%' }}>
-      {logs.map((log, idx) => (
-        <div
-          key={log.id ?? `log-${idx}`}
-          style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 16px', borderBottom: '1px solid var(--border-0)' }}
-        >
-          <span style={{ fontSize: 13, flexShrink: 0, marginTop: 2 }} aria-hidden>
-            {STAGE_EMOJI[log.stage] ?? '·'}
-          </span>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Label>{log.stage}</Label>
-              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', flexShrink: 0 }}>
-                {fmtTime(log.timestamp)}
-              </span>
+    <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', height: '100%', padding: '8px 0' }}>
+      {logs.map((log, idx) => {
+        const dotColor = STAGE_DOT[log.stage] ?? '#94A3B8'
+        const isError = log.level === 'error'
+        const isLast = idx === logs.length - 1
+
+        return (
+          <div
+            key={log.id ?? `log-${idx}`}
+            style={{
+              display: 'flex',
+              gap: 12,
+              padding: '10px 16px',
+              position: 'relative',
+              background: isLast ? '#FAFBFD' : 'transparent',
+              borderLeft: isLast ? `2px solid ${dotColor}` : '2px solid transparent',
+              transition: 'background 300ms',
+            }}
+          >
+            {/* Stage dot */}
+            <div style={{ flexShrink: 0, marginTop: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
+              <div style={{
+                width: 8, height: 8,
+                borderRadius: '50%',
+                background: isError ? '#EF4444' : dotColor,
+                boxShadow: isLast ? `0 0 0 3px ${dotColor}22` : 'none',
+                animation: isLast && !isError ? 'pulse-subtle 2s infinite' : 'none',
+                flexShrink: 0,
+              }} />
+              {/* Connector line down to next item */}
+              {idx < logs.length - 1 && (
+                <div style={{ width: 1, flex: 1, minHeight: 12, background: '#E2E8F0', marginTop: 4 }} />
+              )}
             </div>
-            <p style={{
-              fontSize: 13,
-              lineHeight: 1.4,
-              wordBreak: 'break-word',
-              color: log.level === 'error' ? 'var(--error)' : log.level === 'warning' ? 'var(--warning)' : 'var(--text-secondary)',
-            }}>
-              {log.message}
-            </p>
+
+            {/* Content */}
+            <div style={{ flex: 1, minWidth: 0, paddingBottom: idx < logs.length - 1 ? 8 : 0 }}>
+              {/* Stage + time */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                <span style={{
+                  fontSize: 11, fontWeight: 600, letterSpacing: '0.01em',
+                  color: isError ? '#EF4444' : dotColor,
+                }}>
+                  {STAGE_LABEL[log.stage] ?? log.stage}
+                </span>
+                <span style={{ fontSize: 10, color: '#B0B7C3', fontFamily: 'var(--font-mono)' }}>
+                  {fmtTime(log.timestamp)}
+                </span>
+              </div>
+
+              {/* Message — prose style */}
+              {log.message && (
+                <p style={{
+                  fontSize: 12,
+                  lineHeight: 1.65,
+                  color: isError ? '#DC2626' : '#374151',
+                  wordBreak: 'break-word',
+                  margin: 0,
+                }}>
+                  {log.message}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
       <div ref={endRef} />
     </div>
   )
@@ -260,7 +331,7 @@ export function MonitorPanel() {
           onClick={() => setActive('log')}
           className={`tab${active === 'log' ? ' tab--active' : ''}`}
         >
-          Build Log
+          Live Feed
         </button>
         <button
           onClick={() => setActive('messages')}
@@ -282,7 +353,7 @@ export function MonitorPanel() {
 
       {/* Content */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        {active === 'log' && <BuildLogTab logs={buildLogs} />}
+        {active === 'log' && <LiveFeedTab logs={buildLogs} />}
         {active === 'messages' && <MessagesTab messages={agentMessages} />}
         {active === 'tokens' && <TokensTab tokenUsage={tokenUsage} estimatedCost={estimatedCost} />}
       </div>

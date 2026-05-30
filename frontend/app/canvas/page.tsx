@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useEffect, useCallback } from 'react'
+import { Suspense, useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { GenesisCanvas } from '@/components/canvas/GenesisCanvas'
 import { CanvasToolbar } from '@/components/canvas/CanvasToolbar'
@@ -13,16 +13,25 @@ import { api } from '@/lib/api'
 import type { Workflow } from '@/lib/types'
 import type { Node, Edge } from '@xyflow/react'
 
+const STARTER_PROMPTS = [
+  'Monitor our GitHub PRs and flag any that change an API endpoint without updating the docs',
+  "Every weekday morning, summarize what my team shipped yesterday and what's blocked",
+  'Watch our AWS costs and alert me if any service spikes more than 20% day-over-day',
+  'When a new lead fills our Typeform, research their company and score them before we respond',
+]
+
 function InlineIntentPanel({ onSubmitted }: { onSubmitted: () => void }) {
   const [intent, setIntent] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [focusedPrompt, setFocusedPrompt] = useState<number | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const setBuilding = useGenesisStore(s => s.setBuilding)
   const setCurrentBuildId = useGenesisStore(s => s.setCurrentBuildId)
   const setBuildStatus = useGenesisStore(s => s.setBuildStatus)
 
   async function handleBuild() {
-    if (intent.trim().length < 10) { setError('Describe what you want to build'); return }
+    if (intent.trim().length < 10) { setError('Describe what you want your agent to do'); return }
     setLoading(true)
     try {
       const build = await api.startBuild(intent.trim()) as { id: string }
@@ -36,66 +45,157 @@ function InlineIntentPanel({ onSubmitted }: { onSubmitted: () => void }) {
     }
   }
 
+  function usePrompt(prompt: string) {
+    setIntent(prompt)
+    setError('')
+    textareaRef.current?.focus()
+  }
+
   return (
-    <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 16, height: '100%' }}>
-      <div>
-        <div style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 4 }}>
-          What do you want to build?
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+
+      {/* Header */}
+      <div style={{ padding: '20px 18px 14px', borderBottom: '1px solid #EEF0F4' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 8,
+            background: '#F0FDF4', border: '1px solid #BBF7D0',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 13, color: '#16A34A', fontWeight: 700, fontFamily: 'var(--font-mono)',
+          }}>G</div>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#0F172A', letterSpacing: '-0.01em' }}>
+            Build an agent
+          </span>
         </div>
-        <div style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.5 }}>
-          Describe your agent workflow in plain English
-        </div>
+        <p style={{ fontSize: 12, color: '#64748B', lineHeight: 1.6, margin: 0 }}>
+          Describe a task in plain English. Genesis designs and deploys a multi-agent workflow that runs it autonomously.
+        </p>
       </div>
-      <textarea
-        value={intent}
-        onChange={e => { setIntent(e.target.value); setError('') }}
-        placeholder="Monitor our GitHub repo and send me a Telegram alert when a PR hasn't been reviewed in 24 hours..."
-        rows={7}
-        style={{
-          width: '100%',
-          background: '#FFFFFF',
-          border: '1px solid #D1D5DB',
-          borderRadius: 6,
-          padding: '10px 12px',
-          color: '#111827',
-          fontSize: 14,
-          fontFamily: 'var(--font-sans)',
-          lineHeight: 1.6,
-          resize: 'none',
-          outline: 'none',
-          boxShadow: 'none',
-          transition: 'border-color 150ms, box-shadow 150ms',
-        }}
-        onFocus={e => { e.target.style.borderColor = '#16A34A'; e.target.style.boxShadow = '0 0 0 3px rgba(22,163,74,0.1)' }}
-        onBlur={e => { e.target.style.borderColor = '#D1D5DB'; e.target.style.boxShadow = 'none' }}
-        onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleBuild() }}
-      />
-      {error && <p style={{ fontSize: 13, color: '#DC2626' }}>{error}</p>}
-      <button
-        onClick={handleBuild}
-        disabled={loading}
-        style={{
-          padding: '10px 0',
-          background: loading ? '#F9FAFB' : '#16A34A',
-          color: loading ? '#9CA3AF' : '#FFFFFF',
-          border: '1px solid',
-          borderColor: loading ? '#E5E7EB' : 'transparent',
-          borderRadius: 6,
-          fontSize: 13,
-          fontWeight: 500,
-          cursor: loading ? 'not-allowed' : 'pointer',
-          fontFamily: 'inherit',
-          transition: 'all 150ms',
-          letterSpacing: '0.01em',
-        }}
-        onMouseEnter={e => { if (!loading) { const el = e.currentTarget as HTMLElement; el.style.background = '#15803D' } }}
-        onMouseLeave={e => { if (!loading) { const el = e.currentTarget as HTMLElement; el.style.background = '#16A34A' } }}
-      >
-        {loading ? 'Building…' : 'Build with Genesis'}
-      </button>
-      <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', margin: 0 }}>
-        ⌘ + Enter to submit
-      </p>
+
+      {/* Scrollable body */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+        {/* Textarea */}
+        <textarea
+          ref={textareaRef}
+          value={intent}
+          onChange={e => { setIntent(e.target.value); setError('') }}
+          placeholder="e.g. Every morning, review our open PRs, find any that touch the payments service, and post a risk summary to our Slack engineering channel."
+          rows={6}
+          style={{
+            width: '100%',
+            background: '#FFFFFF',
+            border: `1px solid ${error ? '#FCA5A5' : '#E2E8F0'}`,
+            borderRadius: 8,
+            padding: '10px 12px',
+            color: '#0F172A',
+            fontSize: 13,
+            fontFamily: 'var(--font-sans)',
+            lineHeight: 1.65,
+            resize: 'none',
+            outline: 'none',
+            transition: 'border-color 150ms, box-shadow 150ms',
+            boxShadow: 'none',
+          }}
+          onFocus={e => {
+            e.target.style.borderColor = '#16A34A'
+            e.target.style.boxShadow = '0 0 0 3px rgba(22,163,74,0.08)'
+          }}
+          onBlur={e => {
+            e.target.style.borderColor = error ? '#FCA5A5' : '#E2E8F0'
+            e.target.style.boxShadow = 'none'
+          }}
+          onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleBuild() }}
+        />
+        {error && (
+          <p style={{ fontSize: 12, color: '#DC2626', margin: '-4px 0 0' }}>{error}</p>
+        )}
+
+        {/* Build button */}
+        <button
+          onClick={handleBuild}
+          disabled={loading}
+          style={{
+            width: '100%',
+            padding: '10px 0',
+            background: loading ? '#F1F5F9' : '#16A34A',
+            color: loading ? '#94A3B8' : '#FFFFFF',
+            border: '1px solid',
+            borderColor: loading ? '#E2E8F0' : 'transparent',
+            borderRadius: 7,
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: loading ? 'not-allowed' : 'pointer',
+            fontFamily: 'inherit',
+            transition: 'all 150ms',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+          }}
+          onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLElement).style.background = '#15803D' }}
+          onMouseLeave={e => { if (!loading) (e.currentTarget as HTMLElement).style.background = '#16A34A' }}
+        >
+          {loading ? (
+            <>
+              <span style={{
+                width: 12, height: 12,
+                border: '2px solid rgba(0,0,0,0.1)',
+                borderTopColor: '#94A3B8',
+                borderRadius: '50%',
+                animation: 'spin 600ms linear infinite',
+                display: 'inline-block', flexShrink: 0,
+              }} />
+              Building your agent team…
+            </>
+          ) : 'Build with Genesis'}
+        </button>
+
+        <p style={{ fontSize: 11, color: '#B0B7C3', textAlign: 'center', margin: '-4px 0 0' }}>
+          ⌘ + Enter · Takes 20–60 seconds
+        </p>
+
+        {/* Divider */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ flex: 1, height: 1, background: '#EEF0F4' }} />
+          <span style={{ fontSize: 10, color: '#CBD5E1', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            Or try an example
+          </span>
+          <div style={{ flex: 1, height: 1, background: '#EEF0F4' }} />
+        </div>
+
+        {/* Starter prompts */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {STARTER_PROMPTS.map((prompt, i) => (
+            <button
+              key={i}
+              onClick={() => usePrompt(prompt)}
+              onMouseEnter={() => setFocusedPrompt(i)}
+              onMouseLeave={() => setFocusedPrompt(null)}
+              style={{
+                textAlign: 'left',
+                background: focusedPrompt === i ? '#F8FAFD' : '#FFFFFF',
+                border: `1px solid ${focusedPrompt === i ? '#CBD5E1' : '#EEF0F4'}`,
+                borderRadius: 7,
+                padding: '9px 12px',
+                fontSize: 12,
+                color: '#374151',
+                lineHeight: 1.55,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                transition: 'all 120ms',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 8,
+              }}
+            >
+              <span style={{ color: '#CBD5E1', flexShrink: 0, marginTop: 1 }}>↗</span>
+              {prompt}
+            </button>
+          ))}
+        </div>
+
+      </div>
     </div>
   )
 }
