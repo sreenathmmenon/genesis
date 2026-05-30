@@ -11,13 +11,13 @@
 
   html {
     font-size: 13px;
-    background: #0a0a0a;
+    background: #080808;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
   body {
-    background-color: var(--surface-0, #0a0a0a);
+    background-color: var(--surface-0, #080808);
     color: var(--text-primary, #ededed);
     font-family: var(--font-sans);
     line-height: 1.6;
@@ -42,7 +42,7 @@
     flex-direction: column;
     height: 100vh;
     overflow: hidden;
-    background: var(--surface-0, #0a0a0a);
+    background: var(--surface-0, #080808);
   }
 
   .layout-toolbar {
@@ -116,14 +116,14 @@
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
   .btn--primary {
-    background: var(--accent-dim, #1a2400);
-    color: var(--accent-text, #8ed022);
-    border-color: var(--accent-border, #3a5500);
+    background: var(--surface-3, #222222);
+    color: var(--text-primary, #ededed);
+    border-color: var(--border-2, #2e2e2e);
   }
   .btn--primary:hover:not(:disabled) {
-    background: #243000;
-    border-color: #5a7a00;
-    color: #adff2f;
+    background: var(--surface-3, #222222);
+    border-color: var(--accent-border, #3a5500);
+    color: var(--accent-text, #8ed022);
   }
 
   .btn--secondary {
@@ -384,7 +384,7 @@
     position: fixed;
     top: 0;
     left: 0;
-    width: 200px;
+    width: 160px;
     height: 100vh;
     background: var(--surface-1, #111111);
     border-right: 1px solid var(--border-0, #1a1a1a);
@@ -398,8 +398,8 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 9px 16px;
-    font-size: 13px;
+    padding: 8px 14px;
+    font-size: 12px;
     font-weight: 400;
     color: var(--text-tertiary, #6e6e6e);
     text-decoration: none;
@@ -411,13 +411,13 @@
 
   .nav-item:hover {
     color: var(--text-secondary, #a1a1a1);
-    background: var(--surface-2, #161616);
+    background: var(--surface-2, #181818);
   }
 
   .nav-item--active {
     color: var(--text-primary, #ededed);
-    background: var(--surface-3, #1c1c1c);
-    border-left-color: var(--accent, #adff2f);
+    background: var(--surface-2, #181818);
+    border-left-color: var(--accent-text, #8ed022);
   }
 
   /* ── PAGE LAYOUT WITH SIDEBAR ── */
@@ -426,11 +426,11 @@
     display: flex;
     height: 100vh;
     overflow: hidden;
-    background: var(--surface-0, #0a0a0a);
+    background: var(--surface-0, #080808);
   }
 
   .page-content {
-    margin-left: 200px;
+    margin-left: 160px;
     flex: 1;
     overflow-y: auto;
     min-height: 0;

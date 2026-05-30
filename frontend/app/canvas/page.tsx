@@ -13,6 +13,91 @@ import { api } from '@/lib/api'
 import type { Workflow } from '@/lib/types'
 import type { Node, Edge } from '@xyflow/react'
 
+function InlineIntentPanel({ onSubmitted }: { onSubmitted: () => void }) {
+  const [intent, setIntent] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const setBuilding = useGenesisStore(s => s.setBuilding)
+  const setCurrentBuildId = useGenesisStore(s => s.setCurrentBuildId)
+  const setBuildStatus = useGenesisStore(s => s.setBuildStatus)
+
+  async function handleBuild() {
+    if (intent.trim().length < 10) { setError('Describe what you want to build'); return }
+    setLoading(true)
+    try {
+      const build = await api.startBuild(intent.trim()) as { id: string }
+      setCurrentBuildId(build.id)
+      setBuilding(true)
+      setBuildStatus('decomposing')
+      onSubmitted()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 16, height: '100%' }}>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+          What do you want to build?
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
+          Describe your agent workflow in plain English
+        </div>
+      </div>
+      <textarea
+        value={intent}
+        onChange={e => { setIntent(e.target.value); setError('') }}
+        placeholder="Monitor our GitHub repo and send me a Telegram alert when a PR hasn't been reviewed in 24 hours..."
+        rows={7}
+        style={{
+          width: '100%',
+          background: 'var(--surface-2)',
+          border: '1px solid var(--border-2)',
+          borderRadius: 6,
+          padding: '10px 12px',
+          color: 'var(--text-primary)',
+          fontSize: 12,
+          fontFamily: 'var(--font-sans)',
+          lineHeight: 1.6,
+          resize: 'none',
+          outline: 'none',
+        }}
+        onFocus={e => { e.target.style.borderColor = 'var(--accent-border)' }}
+        onBlur={e => { e.target.style.borderColor = 'var(--border-2)' }}
+        onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleBuild() }}
+      />
+      {error && <p style={{ fontSize: 11, color: 'var(--error)' }}>{error}</p>}
+      <button
+        onClick={handleBuild}
+        disabled={loading}
+        style={{
+          padding: '10px 0',
+          background: loading ? 'var(--surface-2)' : 'var(--surface-3)',
+          color: loading ? 'var(--text-tertiary)' : 'var(--text-primary)',
+          border: '1px solid',
+          borderColor: loading ? 'var(--border-1)' : 'var(--border-2)',
+          borderRadius: 5,
+          fontSize: 12,
+          fontWeight: 500,
+          cursor: loading ? 'not-allowed' : 'pointer',
+          fontFamily: 'inherit',
+          transition: 'all 120ms',
+          letterSpacing: '0.01em',
+        }}
+        onMouseEnter={e => { if (!loading) { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--accent-border)'; el.style.color = 'var(--accent-text)' } }}
+        onMouseLeave={e => { if (!loading) { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--border-2)'; el.style.color = 'var(--text-primary)' } }}
+      >
+        {loading ? 'Building…' : 'Build with Genesis'}
+      </button>
+      <p style={{ fontSize: 10, color: 'var(--text-tertiary)', textAlign: 'center', margin: 0 }}>
+        ⌘ + Enter to submit
+      </p>
+    </div>
+  )
+}
+
 const EDGE_STYLE = { stroke: '#adff2f', strokeWidth: 1.5 }
 
 function CanvasPageInner() {
@@ -75,9 +160,13 @@ function CanvasPageInner() {
       {/* Three-panel body — uses layout-body + layout-left + layout-center + layout-right */}
       <div className="layout-body">
 
-        {/* Left: 280px, agent config */}
+        {/* Left: 280px, agent config or inline build prompt */}
         <aside className="layout-left">
-          <AgentConfigPanel />
+          {!workflowId ? (
+            <InlineIntentPanel onSubmitted={() => setWorkflow(null)} />
+          ) : (
+            <AgentConfigPanel />
+          )}
         </aside>
 
         {/* Center: flex-1, ReactFlow canvas */}

@@ -63,10 +63,10 @@ export default function HomePage() {
   }, [])
 
   const STAT_CARDS = [
-    { label: 'Total Agents', value: stats.totalAgents, suffix: '' },
-    { label: 'Active', value: stats.activeNow, suffix: '' },
-    { label: 'Runs Today', value: stats.runsToday, suffix: '' },
-    { label: 'Tools', value: stats.toolsAvailable, suffix: '' },
+    { label: 'Total agents', value: stats.totalAgents, suffix: '', accent: false },
+    { label: 'Active', value: stats.activeNow, suffix: '', accent: true },
+    { label: 'Runs today', value: stats.runsToday, suffix: '', accent: false },
+    { label: 'Tools', value: stats.toolsAvailable, suffix: '', accent: false },
   ]
 
   return (
@@ -97,10 +97,11 @@ export default function HomePage() {
                 background: 'var(--surface-1)',
                 border: '1px solid var(--border-1)',
                 borderRadius: 6,
-                padding: '18px 20px 14px',
+                padding: '20px 20px 16px',
+                borderLeft: card.accent ? '3px solid var(--success)' : '3px solid var(--border-2)',
               }}>
                 <div style={{
-                  fontSize: 30,
+                  fontSize: 28,
                   fontWeight: 600,
                   color: 'var(--text-primary)',
                   letterSpacing: '-0.03em',
@@ -113,8 +114,7 @@ export default function HomePage() {
                 <div style={{
                   fontSize: 11,
                   color: 'var(--text-tertiary)',
-                  letterSpacing: '0.07em',
-                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
                   fontWeight: 500,
                 }}>
                   {card.label}
@@ -171,7 +171,7 @@ export default function HomePage() {
                   <div
                     style={{
                       display: 'grid', gridTemplateColumns: '1fr 90px 110px 70px',
-                      gap: 12, padding: '11px 16px',
+                      gap: 12, padding: '9px 16px',
                       borderBottom: i < runs.length - 1 ? '1px solid var(--border-0)' : 'none',
                       transition: 'background 120ms',
                     }}

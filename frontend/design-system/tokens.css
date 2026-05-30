@@ -3,11 +3,11 @@
      SURFACE HIERARCHY
      Lighter = higher elevation (Supabase pattern)
   ============================================ */
-  --surface-0: #0a0a0a;    /* Page background — deepest */
+  --surface-0: #080808;    /* Page background — deepest */
   --surface-1: #111111;    /* Primary panels, cards */
-  --surface-2: #161616;    /* Elevated cards, dropdowns */
-  --surface-3: #1c1c1c;    /* Hover states, active items */
-  --surface-4: #222222;    /* Tooltips, popovers */
+  --surface-2: #181818;    /* Elevated cards, dropdowns */
+  --surface-3: #222222;    /* Hover states, active items */
+  --surface-4: #2a2a2a;    /* Tooltips, popovers */
 
   /* ============================================
      BORDERS — creates depth without shadows

@@ -1,32 +1,53 @@
-import { Badge, StatusDot } from '@/components/ui'
-import type { BadgeVariant } from '@/components/ui'
+'use client'
 
 interface StatusBadgeProps {
   status: string
   className?: string
 }
 
-const STATUS_CONFIG: Record<string, { variant: BadgeVariant; pulse: boolean }> = {
-  draft:              { variant: 'default',  pulse: false },
-  building:           { variant: 'warning',  pulse: true  },
-  decomposing:        { variant: 'warning',  pulse: true  },
-  validating:         { variant: 'info',     pulse: true  },
-  reviewing:          { variant: 'info',     pulse: true  },
-  active:             { variant: 'accent',   pulse: false },
-  awaiting_approval:  { variant: 'ops',      pulse: true  },
-  paused:             { variant: 'warning',  pulse: false },
-  failed:             { variant: 'error',    pulse: false },
-  completed:          { variant: 'success',  pulse: false },
-  cancelled:          { variant: 'default',  pulse: false },
+const STATUS_CONFIG: Record<string, { color: string; dot: string; pulse: boolean }> = {
+  draft:             { color: 'var(--text-tertiary)',  dot: 'var(--text-tertiary)', pulse: false },
+  building:          { color: 'var(--warning)',        dot: 'var(--warning)',       pulse: true  },
+  decomposing:       { color: 'var(--warning)',        dot: 'var(--warning)',       pulse: true  },
+  validating:        { color: 'var(--info)',           dot: 'var(--info)',          pulse: true  },
+  reviewing:         { color: 'var(--info)',           dot: 'var(--info)',          pulse: true  },
+  active:            { color: 'var(--accent-text)',    dot: 'var(--accent-text)',   pulse: false },
+  awaiting_approval: { color: 'var(--layer-ops)',      dot: 'var(--layer-ops)',     pulse: true  },
+  paused:            { color: 'var(--warning)',        dot: 'var(--warning)',       pulse: false },
+  failed:            { color: 'var(--error)',          dot: 'var(--error)',         pulse: false },
+  completed:         { color: 'var(--success)',        dot: 'var(--success)',       pulse: false },
+  running:           { color: 'var(--accent-text)',    dot: 'var(--accent-text)',   pulse: true  },
+  cancelled:         { color: 'var(--text-tertiary)',  dot: 'var(--text-tertiary)', pulse: false },
 }
 
 export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
-  const config = STATUS_CONFIG[status] ?? { variant: 'default' as BadgeVariant, pulse: false }
+  const config = STATUS_CONFIG[status] ?? { color: 'var(--text-tertiary)', dot: 'var(--text-tertiary)', pulse: false }
+  const label = status.replace(/_/g, ' ')
 
   return (
-    <Badge variant={config.variant} className={`inline-flex items-center gap-1.5 ${className}`}>
-      {config.pulse && <StatusDot state="building" />}
-      {status.replace(/_/g, ' ')}
-    </Badge>
+    <span
+      className={className}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        fontSize: 11,
+        color: config.color,
+        fontWeight: 500,
+        letterSpacing: '0.01em',
+      }}
+    >
+      <span
+        style={{
+          width: 5,
+          height: 5,
+          borderRadius: '50%',
+          background: config.dot,
+          flexShrink: 0,
+          animation: config.pulse ? 'pulse 1.5s infinite' : 'none',
+        }}
+      />
+      {label}
+    </span>
   )
 }

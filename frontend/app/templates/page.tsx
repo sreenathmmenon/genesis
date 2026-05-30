@@ -66,15 +66,15 @@ function TemplateCard({
             disabled={deploying}
             style={{
               padding: '6px 16px', fontSize: 12, fontWeight: 500,
-              background: 'transparent',
+              background: deploying ? 'var(--surface-2)' : 'var(--surface-3)',
               color: deploying ? 'var(--text-tertiary)' : 'var(--text-primary)',
               border: `1px solid ${deploying ? 'var(--border-1)' : 'var(--border-2)'}`,
               borderRadius: 4, cursor: deploying ? 'not-allowed' : 'pointer',
               flexShrink: 0, opacity: deploying ? 0.5 : 1,
               fontFamily: 'inherit', transition: 'background 120ms, border-color 120ms, color 120ms',
             }}
-            onMouseEnter={e => { if (!deploying) { const el = e.currentTarget as HTMLElement; el.style.background = 'var(--surface-2)'; el.style.borderColor = 'var(--accent-border)'; el.style.color = 'var(--accent-text)' } }}
-            onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = 'transparent'; el.style.borderColor = deploying ? 'var(--border-1)' : 'var(--border-2)'; el.style.color = deploying ? 'var(--text-tertiary)' : 'var(--text-primary)' }}
+            onMouseEnter={e => { if (!deploying) { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--accent-border)'; el.style.color = 'var(--accent-text)' } }}
+            onMouseLeave={e => { if (!deploying) { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--border-2)'; el.style.color = 'var(--text-primary)' } }}
           >
             {deploying ? 'Deploying…' : 'Deploy →'}
           </button>

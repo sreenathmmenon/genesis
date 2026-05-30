@@ -10,12 +10,17 @@ import type { Workflow, SchedulerJob } from '@/lib/types'
 function formatCron(expr: string): string {
   const presets: Record<string, string> = {
     '0 9 * * 1-5': 'Weekdays 9am',
+    '0 8 * * 1-5': 'Weekdays 8am',
     '0 9 * * *':   'Daily 9am',
     '0 8 * * 1':   'Mondays 8am',
     '0 8 * * *':   'Daily 8am',
+    '0 17 * * 5':  'Fridays 5pm',
+    '*/5 * * * *':  'Every 5m',
     '*/15 * * * *': 'Every 15m',
+    '0 */2 * * *':  'Every 2h',
     '0 * * * *':   'Every hour',
     '0 0 * * *':   'Daily midnight',
+    '0 0 * * 1':   'Mondays midnight',
   }
   return presets[expr] ?? expr
 }
@@ -64,39 +69,28 @@ function AgentCard({ wf, nextRun, runStatus, onRun }: {
     <div style={{
       background: 'var(--surface-1)',
       border: `1px solid ${running ? 'var(--accent-border)' : 'var(--border-1)'}`,
-      borderRadius: 6,
+      borderRadius: 8,
       overflow: 'hidden',
       display: 'flex',
       flexDirection: 'column',
       transition: 'border-color 200ms, box-shadow 200ms',
-      boxShadow: running ? '0 0 0 1px var(--accent-border), 0 0 20px rgba(173,255,47,0.08)' : 'none',
+      boxShadow: running ? '0 0 0 1px var(--accent-border)' : 'none',
     }}>
-      {/* Accent line */}
-      <div style={{
-        height: 2,
-        background: running ? 'var(--accent)' : done ? 'var(--success)' : failed ? 'var(--error)' : 'var(--border-1)',
-        transition: 'background 300ms',
-        flexShrink: 0,
-      }} />
-
-      <div style={{ padding: '14px 18px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {/* Name + status */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-          <h3 style={{
-            flex: 1, fontSize: 14, fontWeight: 600,
-            color: 'var(--text-primary)', letterSpacing: '-0.01em',
-            lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {wf.name}
-          </h3>
-          <StatusDot status={wf.status} />
-        </div>
+      <div style={{ padding: '18px 20px 14px', flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Name */}
+        <h3 style={{
+          fontSize: 14, fontWeight: 600,
+          color: 'var(--text-primary)', letterSpacing: '-0.01em',
+          lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {wf.name}
+        </h3>
 
         {/* Intent */}
         <p style={{
-          fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.55,
-          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-          overflow: 'hidden', minHeight: '2.5em',
+          fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6,
+          display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical',
+          overflow: 'hidden', minHeight: '3.6em',
         }}>
           {wf.intent || wf.description || '—'}
         </p>
@@ -105,60 +99,36 @@ function AgentCard({ wf, nextRun, runStatus, onRun }: {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           {wf.schedule_expr ? (
             <span style={{
-              fontSize: 10, color: 'var(--info)', background: 'var(--info-dim)',
-              border: '1px solid var(--info-border)', borderRadius: 3,
-              padding: '2px 7px', letterSpacing: '0.04em',
+              fontSize: 11, color: 'var(--text-secondary)',
+              display: 'flex', alignItems: 'center', gap: 5,
             }}>
-              ⏱ {formatCron(wf.schedule_expr)}
-              {nextRun && <span style={{ color: 'var(--text-tertiary)', marginLeft: 4 }}>{formatNextRun(nextRun)}</span>}
+              <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--info)', flexShrink: 0 }} />
+              {formatCron(wf.schedule_expr)}
             </span>
           ) : (
-            <span style={{
-              fontSize: 10, color: 'var(--text-tertiary)', background: 'var(--surface-2)',
-              border: '1px solid var(--border-1)', borderRadius: 3,
-              padding: '2px 7px', letterSpacing: '0.04em',
-            }}>
+            <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
               On demand
             </span>
           )}
           {running && (
-            <span style={{
-              fontSize: 10, color: 'var(--accent-text)', background: 'var(--accent-dim)',
-              border: '1px solid var(--accent-border)', borderRadius: 3,
-              padding: '2px 7px', display: 'flex', alignItems: 'center', gap: 4,
-            }}>
-              <span style={{
-                width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)',
-                animation: 'pulse-dot 1.2s infinite',
-              }} />
+            <span style={{ fontSize: 11, color: 'var(--accent-text)', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--accent)', animation: 'pulse-dot 1.2s infinite', flexShrink: 0 }} />
               Running
             </span>
           )}
           {done && (
-            <span style={{
-              fontSize: 10, color: 'var(--success)',
-              background: 'var(--success-dim)', border: '1px solid var(--success-border)',
-              borderRadius: 3, padding: '2px 7px',
-            }}>
-              ✓ Done
-            </span>
+            <span style={{ fontSize: 11, color: 'var(--success)' }}>✓ Done</span>
           )}
           {failed && (
-            <span style={{
-              fontSize: 10, color: 'var(--error)',
-              background: 'var(--error-dim)', border: '1px solid var(--error-border)',
-              borderRadius: 3, padding: '2px 7px',
-            }}>
-              Failed
-            </span>
+            <span style={{ fontSize: 11, color: 'var(--error)' }}>Failed</span>
           )}
         </div>
       </div>
 
       {/* Actions */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        padding: '10px 18px',
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '10px 20px',
         borderTop: '1px solid var(--border-0)',
         background: 'var(--surface-0)',
         flexShrink: 0,
@@ -168,17 +138,17 @@ function AgentCard({ wf, nextRun, runStatus, onRun }: {
           disabled={running}
           style={{
             padding: '5px 14px', fontSize: 12, fontWeight: 500,
-            background: running ? 'var(--surface-2)' : 'var(--surface-2)',
-            color: running ? 'var(--text-tertiary)' : 'var(--text-secondary)',
-            border: '1px solid var(--border-2)', borderRadius: 4,
+            background: running ? 'var(--surface-2)' : 'var(--surface-3)',
+            color: running ? 'var(--text-tertiary)' : 'var(--text-primary)',
+            border: `1px solid ${running ? 'var(--border-1)' : 'var(--border-2)'}`, borderRadius: 4,
             cursor: running ? 'not-allowed' : 'pointer',
             display: 'flex', alignItems: 'center', gap: 5,
-            transition: 'background 120ms, color 120ms',
+            transition: 'background 120ms, color 120ms, border-color 120ms',
             opacity: running ? 0.6 : 1,
             fontFamily: 'inherit',
           }}
-          onMouseEnter={e => { if (!running) { (e.currentTarget as HTMLElement).style.background = 'var(--surface-3)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)' } }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'var(--surface-2)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)' }}
+          onMouseEnter={e => { if (!running) { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--accent-border)'; el.style.color = 'var(--accent-text)' } }}
+          onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--border-2)'; el.style.color = 'var(--text-primary)' }}
         >
           {running ? (
             <><span style={{ width: 8, height: 8, border: '1.5px solid var(--text-tertiary)', borderTopColor: 'var(--text-primary)', borderRadius: '50%', animation: 'spin 500ms linear infinite', display: 'inline-block' }} /> Running…</>
@@ -286,7 +256,7 @@ export default function WorkflowsPage() {
           )}
 
           {!loading && workflows.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
               {workflows.map(wf => (
                 <AgentCard
                   key={wf.id}
