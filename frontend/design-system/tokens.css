@@ -1,28 +1,28 @@
 :root {
   /* ============================================
-     SURFACE HIERARCHY — Light mode
+     SURFACE HIERARCHY — Light mode (Sarvam-inspired slate palette)
   ============================================ */
-  --surface-0: #F7F8FA;    /* Page background */
+  --surface-0: #F6F8FC;    /* Page background — cool off-white */
   --surface-1: #FFFFFF;    /* Cards, panels */
-  --surface-2: #F9FAFB;    /* Hover states */
-  --surface-3: #F3F4F6;    /* Active/pressed */
-  --surface-4: #E5E7EB;    /* Borders used as surfaces */
+  --surface-2: #F8FAFD;    /* Hover states */
+  --surface-3: #F1F5F9;    /* Active/pressed */
+  --surface-4: #E2E8F0;    /* Borders used as surfaces */
 
   /* ============================================
      BORDERS
   ============================================ */
-  --border-0: #F3F4F6;    /* Subtlest */
-  --border-1: #E5E7EB;    /* Default card borders */
-  --border-2: #D1D5DB;    /* Input borders, table lines */
-  --border-3: #9CA3AF;    /* Focused states, active */
+  --border-0: #EEF0F4;    /* Subtlest */
+  --border-1: #E8EDF3;    /* Default card borders */
+  --border-2: #CBD5E1;    /* Input borders, table lines */
+  --border-3: #94A3B8;    /* Focused states, active */
 
   /* ============================================
-     TEXT
+     TEXT — Slate palette for high contrast + softness
   ============================================ */
-  --text-primary:   #111827;
-  --text-secondary: #374151;
-  --text-tertiary:  #6B7280;
-  --text-placeholder: #9CA3AF;
+  --text-primary:   #0F172A;    /* Near-black slate */
+  --text-secondary: #1E293B;    /* Dark slate */
+  --text-tertiary:  #64748B;    /* Muted slate */
+  --text-placeholder: #94A3B8;
   --text-inverse: #FFFFFF;
 
   /* ============================================
@@ -127,9 +127,9 @@
   /* ============================================
      SHADOWS
   ============================================ */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-lg: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-sm: 0 1px 2px rgba(15,23,42,0.04);
+  --shadow-md: 0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.03);
+  --shadow-lg: 0 4px 16px rgba(15,23,42,0.08), 0 2px 4px rgba(15,23,42,0.04);
 
   /* ============================================
      MOTION
