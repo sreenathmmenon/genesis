@@ -59,14 +59,25 @@ export function GenesisCanvas() {
     return () => registerFitView(() => {})
   }, [registerFitView])
 
-  // Also respond to fitViewRequest signal (fallback when fn wasn't registered yet)
+  // Respond to fitViewRequest — try immediately and again after render
   useEffect(() => {
-    if (fitViewRequest > 0 && rfInstanceRef.current) {
-      setTimeout(() => {
-        rfInstanceRef.current?.fitView({ padding: 0.25, duration: 300 })
-      }, 80)
+    if (fitViewRequest > 0) {
+      const tryFit = () => rfInstanceRef.current?.fitView({ padding: 0.2, duration: 400 })
+      setTimeout(tryFit, 100)
+      setTimeout(tryFit, 600)
+      setTimeout(tryFit, 1200)
     }
   }, [fitViewRequest])
+
+  // Also fit when nodes first appear (covers auto-load case)
+  const prevNodeCount = useRef(0)
+  useEffect(() => {
+    if (nodes.length > 0 && prevNodeCount.current === 0) {
+      setTimeout(() => rfInstanceRef.current?.fitView({ padding: 0.2, duration: 400 }), 200)
+      setTimeout(() => rfInstanceRef.current?.fitView({ padding: 0.2, duration: 0 }), 800)
+    }
+    prevNodeCount.current = nodes.length
+  }, [nodes.length])
 
   const onConnect = useCallback(
     (connection: Connection) => {

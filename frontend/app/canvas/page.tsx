@@ -116,6 +116,7 @@ function CanvasPageInner() {
 
   const [workflow, setWorkflow] = useState<Workflow | null>(null)
   const [intentOpen, setIntentOpen] = useState(false)
+  const [autoLoadedId, setAutoLoadedId] = useState<string | null>(null)
 
   const { subscribe } = useWebSocket()
 
@@ -127,8 +128,8 @@ function CanvasPageInner() {
         const canvas = wf.canvas_json as { nodes?: Node[]; edges?: Edge[] } | null
         if (canvas?.nodes) canvas.nodes.forEach(addNode)
         if (canvas?.edges) canvas.edges.forEach((e) => addEdge({ ...e, animated: true, style: EDGE_STYLE }))
-        // Signal canvas to fit view after nodes are loaded
-        requestFitView()
+        // Delay fitView so ReactFlow has time to render nodes
+        setTimeout(() => requestFitView(), 300)
       })
       .catch(console.error)
   }, [clearCanvas, addNode, addEdge, requestFitView])
@@ -141,19 +142,19 @@ function CanvasPageInner() {
 
   // Auto-load most recent workflow when no workflow_id in URL
   useEffect(() => {
-    if (workflowId) return  // already loading from URL
+    if (workflowId) return
     api.getWorkflows().then((wfs) => {
       const active = (wfs as Workflow[])
         .filter(w => w.status === 'active' || w.status === 'paused')
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       if (active.length > 0) {
-        loadWorkflow(active[0].id)
-        setWorkflow(active[0])
-        // Update URL without navigation
-        router.replace(`/canvas?workflow_id=${active[0].id}`)
+        const wf = active[0]
+        setAutoLoadedId(wf.id)
+        loadWorkflow(wf.id)
+        router.replace(`/canvas?workflow_id=${wf.id}`)
       }
     }).catch(console.error)
-  }, [])  // run once on mount
+  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Listen for deploy event → navigate canvas to the new workflow
   useEffect(() => {
@@ -183,7 +184,7 @@ function CanvasPageInner() {
 
         {/* Left: 280px, agent config or inline build prompt */}
         <aside className="layout-left">
-          {!workflowId && !workflow ? (
+          {!workflowId && !workflow && !autoLoadedId ? (
             <InlineIntentPanel onSubmitted={() => setWorkflow(null)} />
           ) : (
             <AgentConfigPanel />

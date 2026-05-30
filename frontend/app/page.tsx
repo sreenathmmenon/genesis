@@ -7,10 +7,13 @@ import { StatusBadge } from '@/components/shared/StatusBadge'
 import { api } from '@/lib/api'
 import type { Run, Workflow } from '@/lib/types'
 
+const ACRONYMS = new Set(['hn', 'ai', 'pr', 'api', 'oss', 'ml', 'ui', 'ux', 'db', 'ci', 'cd'])
+
 function formatAgentName(name: string): string {
   return name
-    .replace(/-/g, ' ')
-    .replace(/\b\w/g, c => c.toUpperCase())
+    .split('-')
+    .map(word => ACRONYMS.has(word.toLowerCase()) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
 }
 
 function formatDuration(start: string, end: string | null): string {

@@ -307,10 +307,12 @@ export default function HistoryPage() {
     }
   }
 
+  const ACRONYMS = new Set(['hn', 'ai', 'pr', 'api', 'oss', 'ml', 'ui', 'ux', 'db', 'ci', 'cd'])
   function formatAgentName(name: string): string {
     return name
-      .replace(/-/g, ' ')
-      .replace(/\b\w/g, c => c.toUpperCase())
+      .split('-')
+      .map(word => ACRONYMS.has(word.toLowerCase()) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
   }
 
   function resolveWorkflowName(workflowId: string): string {
