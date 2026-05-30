@@ -7,6 +7,12 @@ import { StatusBadge } from '@/components/shared/StatusBadge'
 import { api } from '@/lib/api'
 import type { Run, Workflow } from '@/lib/types'
 
+function formatAgentName(name: string): string {
+  return name
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+}
+
 function formatDuration(start: string, end: string | null): string {
   if (!end) return '—'
   const ms = new Date(end).getTime() - new Date(start).getTime()
@@ -197,7 +203,7 @@ export default function HomePage() {
                     onMouseLeave={e => (e.currentTarget.style.background = '#FFFFFF')}
                   >
                     <span style={{ fontSize: 14, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {workflowNames[run.workflow_id] ?? run.workflow_id.slice(0, 8) + '…'}
+                      {workflowNames[run.workflow_id] ? formatAgentName(workflowNames[run.workflow_id]) : run.workflow_id.slice(0, 8) + '…'}
                     </span>
                     <StatusBadge status={run.status} />
                     <span style={{ fontSize: 13, color: '#6B7280' }}>{formatRelativeTime(run.started_at)}</span>

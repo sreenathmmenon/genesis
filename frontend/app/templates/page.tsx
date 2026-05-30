@@ -150,10 +150,13 @@ function TemplateCard({
   )
 }
 
+const CATEGORIES = ['All', 'Engineering', 'Intelligence', 'Automation', 'Ops']
+
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<TemplateWithAgents[]>([])
   const [loading, setLoading] = useState(true)
   const [deploying, setDeploying] = useState<string | null>(null)
+  const [activeCategory, setActiveCategory] = useState('All')
   const router = useRouter()
 
   useEffect(() => {
@@ -174,15 +177,19 @@ export default function TemplatesPage() {
     }
   }
 
+  const filteredTemplates = activeCategory === 'All'
+    ? templates
+    : templates.filter(t => t.category.toLowerCase() === activeCategory.toLowerCase())
+
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F7F8FA' }}>
       <Nav />
 
       <div className="page-content">
-        <div style={{ maxWidth: 860, width: '100%', margin: '0 auto', padding: '40px 32px 64px' }}>
+        <div style={{ maxWidth: 980, width: '100%', margin: '0 auto', padding: '40px 32px 64px' }}>
 
           {/* Page header */}
-          <div style={{ marginBottom: 32 }}>
+          <div style={{ marginBottom: 24 }}>
             <h1 style={{ fontSize: 24, fontWeight: 600, color: '#111827', letterSpacing: '-0.02em', marginBottom: 4, lineHeight: 1.2 }}>
               Templates
             </h1>
@@ -190,6 +197,35 @@ export default function TemplatesPage() {
               Pre-built agent workflows, ready to deploy in one click
             </p>
           </div>
+
+          {/* Category filter pills */}
+          {!loading && templates.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 }}>
+              {CATEGORIES.map(cat => {
+                const isActive = activeCategory === cat
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setActiveCategory(cat)}
+                    style={{
+                      padding: '5px 14px',
+                      fontSize: 13,
+                      fontWeight: isActive ? 500 : 400,
+                      background: isActive ? '#F0FDF4' : '#FFFFFF',
+                      color: isActive ? '#16A34A' : '#6B7280',
+                      border: `1px solid ${isActive ? '#86EFAC' : '#E5E7EB'}`,
+                      borderRadius: 20,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      transition: 'all 150ms',
+                    }}
+                  >
+                    {cat}
+                  </button>
+                )
+              })}
+            </div>
+          )}
 
           {loading && (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
@@ -205,8 +241,18 @@ export default function TemplatesPage() {
             />
           )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {templates.map((tmpl) => (
+          {!loading && filteredTemplates.length === 0 && templates.length > 0 && (
+            <div style={{ textAlign: 'center', padding: '48px 0' }}>
+              <p style={{ fontSize: 14, color: '#9CA3AF' }}>No templates in this category</p>
+            </div>
+          )}
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: filteredTemplates.length > 2 ? 'repeat(2, 1fr)' : '1fr',
+            gap: 16,
+          }}>
+            {filteredTemplates.map((tmpl) => (
               <TemplateCard
                 key={tmpl.name}
                 tmpl={tmpl}

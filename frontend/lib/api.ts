@@ -45,6 +45,13 @@ export const api = {
   getWorkflow: (id: string) =>
     fetch(`${API_BASE}/api/v1/workflows/${id}`).then(json),
 
+  updateWorkflow: (id: string, data: Record<string, unknown>) =>
+    fetch(`${API_BASE}/api/v1/workflows/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then(json),
+
   // ── Runs + Messages ────────────────────────────────────────────────────────
   getRuns: (workflowId?: string) =>
     fetch(

@@ -110,6 +110,72 @@ TEMPLATES: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "daily-standup-digest",
+        "display_name": "Daily Standup Digest",
+        "category": "automation",
+        "description": "Every morning, pull updates from GitHub, Jira, and Slack, then generate and send a team standup summary to your channel.",
+        "intent": "Every weekday at 9am, collect yesterday's merged PRs, closed tickets, and Slack highlights, then send a standup digest to our team channel.",
+        "agent_count": 4,
+        "agents": ["GitHub Collector", "Jira Collector", "Slack Collector", "Digest Writer"],
+        "graph_json": None,
+        "schedule": "0 9 * * 1-5",
+    },
+    {
+        "name": "lead-enrichment-bot",
+        "display_name": "Lead Enrichment Bot",
+        "category": "intelligence",
+        "description": "When a new lead appears in your CRM, automatically research their company, find contact details, and score them before your sales team reaches out.",
+        "intent": "When a new lead is added to our CRM, search the web for their company info, LinkedIn profile, and recent news, then add a research summary and lead score to the CRM record.",
+        "agent_count": 3,
+        "agents": ["CRM Watcher", "Research Agent", "Lead Scorer"],
+        "graph_json": None,
+        "schedule": None,
+    },
+    {
+        "name": "infra-cost-watchdog",
+        "display_name": "Infra Cost Watchdog",
+        "category": "ops",
+        "description": "Monitor your AWS/GCP costs daily. Alert your team when spending spikes above threshold and identify the top cost drivers automatically.",
+        "intent": "Every day at 8am check our cloud spending. If daily cost exceeds $500 or grows more than 20% day-over-day, send an alert with the top 3 cost drivers to our Slack channel.",
+        "agent_count": 3,
+        "agents": ["Cost Fetcher", "Anomaly Detector", "Alert Sender"],
+        "graph_json": None,
+        "schedule": "0 8 * * *",
+    },
+    {
+        "name": "changelog-reporter",
+        "display_name": "Weekly Changelog Reporter",
+        "category": "engineering",
+        "description": "Every Friday, collect all merged PRs from your repos, group them by type, and publish a formatted changelog to Notion or your docs site.",
+        "intent": "Every Friday at 5pm, collect all GitHub PRs merged this week, categorize them as features, fixes, or refactors, and post a formatted changelog to our Notion workspace.",
+        "agent_count": 3,
+        "agents": ["PR Collector", "Categorizer", "Notion Publisher"],
+        "graph_json": None,
+        "schedule": "0 17 * * 5",
+    },
+    {
+        "name": "support-triage-agent",
+        "display_name": "Support Ticket Triage",
+        "category": "automation",
+        "description": "Monitor your support inbox. Classify incoming tickets by urgency and category, auto-respond to common questions, and escalate critical issues instantly.",
+        "intent": "Watch our support inbox. Classify each ticket as critical, high, medium, or low. Auto-reply to FAQs, create Jira tickets for bugs, and page on-call for critical issues.",
+        "agent_count": 4,
+        "agents": ["Inbox Watcher", "Classifier", "Auto Responder", "Escalation Agent"],
+        "graph_json": None,
+        "schedule": None,
+    },
+    {
+        "name": "competitor-monitor",
+        "display_name": "Competitor Intelligence",
+        "category": "intelligence",
+        "description": "Track your top competitors daily. Monitor their pricing pages, job postings, and blog for signals. Weekly summary delivered to your inbox.",
+        "intent": "Every Monday morning, scan my top 5 competitors' websites, pricing pages, and job boards for changes. Summarize the 3 most important competitive signals of the week.",
+        "agent_count": 4,
+        "agents": ["Web Scraper", "Change Detector", "Signal Analyst", "Report Writer"],
+        "graph_json": None,
+        "schedule": "0 8 * * 1",
+    },
+    {
         "name": "signal_scout",
         "display_name": "Signal Scout",
         "description": "Every Monday brief on your top 3 competitors' latest moves across changelogs, jobs, and reviews.",
@@ -241,9 +307,15 @@ async def deploy_template(
     if not tmpl:
         raise HTTPException(status_code=404, detail=f"Template '{template_name}' not found")
 
-    graph_json: dict[str, Any] = tmpl["graph_json"]
+    raw_graph_json: dict[str, Any] | None = tmpl["graph_json"]
+    graph_json: dict[str, Any] = raw_graph_json if raw_graph_json else {}
     graph_nodes: list = graph_json.get("nodes", [])
-    schedule_expr: str | None = graph_nodes[0].get("schedule") if graph_nodes else None
+
+    # For templates without graph_json, derive schedule from template-level field
+    if raw_graph_json is None:
+        schedule_expr: str | None = tmpl.get("schedule")
+    else:
+        schedule_expr = graph_nodes[0].get("schedule") if graph_nodes else None
 
     wf = Workflow(
         name=tmpl["display_name"],
@@ -251,57 +323,98 @@ async def deploy_template(
         intent=tmpl["intent"],
         status=WorkflowStatus.active,
         template_name=template_name,
-        graph_json=graph_json,
+        graph_json=graph_json if graph_json else None,
         schedule_expr=schedule_expr,
     )
     db.add(wf)
     await db.flush()
 
-    # Build canvas from graph nodes
+    # Build canvas from graph nodes (or agent names for simple templates)
     nodes: list[dict[str, Any]] = []
     edges: list[dict[str, Any]] = []
     node_x: dict[str, int] = {}
 
-    for i, gnode in enumerate(graph_nodes):
-        nid = gnode["id"]
-        x = i * 280
-        node_x[nid] = x
+    if graph_nodes:
+        for i, gnode in enumerate(graph_nodes):
+            nid = gnode["id"]
+            x = i * 280
+            node_x[nid] = x
 
-        agent = Agent(
-            name=nid.replace("_", " ").title(),
-            role=nid,
-            system_prompt=gnode.get("system_prompt", ""),
-            model_name=gnode.get("model_name", "claude-sonnet-4-5"),
-            tools=gnode.get("tools", []),
-            workflow_id=wf.id,
-        )
-        db.add(agent)
-        await db.flush()
+            agent = Agent(
+                name=nid.replace("_", " ").title(),
+                role=nid,
+                system_prompt=gnode.get("system_prompt", ""),
+                model_name=gnode.get("model_name", "claude-sonnet-4-5"),
+                tools=gnode.get("tools", []),
+                workflow_id=wf.id,
+            )
+            db.add(agent)
+            await db.flush()
 
-        nodes.append({
-            "id": nid,
-            "type": "agentNode",
-            "position": {"x": x, "y": 100},
-            "data": {
-                "label": nid.replace("_", " ").title(),
-                "role": nid,
-                "layer": "generated",
-                "model": gnode.get("model_name", "claude-sonnet-4-5"),
-                "tools": gnode.get("tools", []),
-                "status": "idle",
-                "systemPromptPreview": gnode.get("system_prompt", "")[:80],
-            },
-        })
-
-    for gedge in graph_json.get("edges", []):
-        src, tgt = gedge.get("source"), gedge.get("target")
-        if src and tgt:
-            edges.append({
-                "id": f"e-{src}-{tgt}",
-                "source": src,
-                "target": tgt,
-                "animated": True,
+            nodes.append({
+                "id": nid,
+                "type": "agentNode",
+                "position": {"x": x, "y": 100},
+                "data": {
+                    "label": nid.replace("_", " ").title(),
+                    "role": nid,
+                    "layer": "generated",
+                    "model": gnode.get("model_name", "claude-sonnet-4-5"),
+                    "tools": gnode.get("tools", []),
+                    "status": "idle",
+                    "systemPromptPreview": gnode.get("system_prompt", "")[:80],
+                },
             })
+
+        for gedge in graph_json.get("edges", []):
+            src, tgt = gedge.get("source"), gedge.get("target")
+            if src and tgt:
+                edges.append({
+                    "id": f"e-{src}-{tgt}",
+                    "source": src,
+                    "target": tgt,
+                    "animated": True,
+                })
+    else:
+        # Build simple linear canvas from agent names list
+        agent_names: list[str] = tmpl.get("agents", [])
+        for i, agent_name in enumerate(agent_names):
+            nid = agent_name.lower().replace(" ", "_")
+            x = i * 280
+            agent = Agent(
+                name=agent_name,
+                role=nid,
+                system_prompt="",
+                model_name="claude-sonnet-4-5",
+                tools=[],
+                workflow_id=wf.id,
+            )
+            db.add(agent)
+            await db.flush()
+
+            nodes.append({
+                "id": nid,
+                "type": "agentNode",
+                "position": {"x": x, "y": 100},
+                "data": {
+                    "label": agent_name,
+                    "role": nid,
+                    "layer": "generated",
+                    "model": "claude-sonnet-4-5",
+                    "tools": [],
+                    "status": "idle",
+                    "systemPromptPreview": "",
+                },
+            })
+
+            if i > 0:
+                prev_nid = agent_names[i - 1].lower().replace(" ", "_")
+                edges.append({
+                    "id": f"e-{prev_nid}-{nid}",
+                    "source": prev_nid,
+                    "target": nid,
+                    "animated": True,
+                })
 
     canvas_json: dict[str, Any] = {"nodes": nodes, "edges": edges}
     wf.canvas_json = canvas_json

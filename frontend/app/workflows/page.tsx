@@ -7,6 +7,12 @@ import { api } from '@/lib/api'
 import { useWebSocket } from '@/lib/websocket'
 import type { Workflow, SchedulerJob } from '@/lib/types'
 
+function formatAgentName(name: string): string {
+  return name
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+}
+
 function formatCron(expr: string): string {
   const presets: Record<string, string> = {
     '0 9 * * 1-5': 'Weekdays 9am',
@@ -38,11 +44,12 @@ function formatNextRun(iso: string | null): string {
 
 type CardRunStatus = 'idle' | 'running' | 'done' | 'failed'
 
-function AgentCard({ wf, nextRun, runStatus, onRun }: {
+function AgentCard({ wf, nextRun, runStatus, onRun, onPauseToggle }: {
   wf: Workflow
   nextRun: string | null
   runStatus: CardRunStatus
   onRun: () => void
+  onPauseToggle: () => void
 }) {
   const running = runStatus === 'running'
   const done = runStatus === 'done'
@@ -70,14 +77,18 @@ function AgentCard({ wf, nextRun, runStatus, onRun }: {
           {wf.status === 'paused' && (
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#9CA3AF', flexShrink: 0 }} />
           )}
-          <h3 style={{
-            fontSize: 14, fontWeight: 600,
-            color: '#111827', letterSpacing: '-0.01em',
-            lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            flex: 1, minWidth: 0,
-          }}>
-            {wf.name}
-          </h3>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h3 style={{
+              fontSize: 14, fontWeight: 600,
+              color: '#111827', letterSpacing: '-0.01em',
+              lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {formatAgentName(wf.name)}
+            </h3>
+            <span style={{ fontSize: 11, color: '#9CA3AF', fontFamily: 'var(--font-mono)' }}>
+              {wf.name}
+            </span>
+          </div>
         </div>
 
         {/* Intent */}
@@ -186,6 +197,22 @@ function AgentCard({ wf, nextRun, runStatus, onRun }: {
             </>
           ) : done ? '✓ Done' : '▶ Run'}
         </button>
+        <button
+          onClick={onPauseToggle}
+          style={{
+            padding: '6px 10px', fontSize: 12,
+            background: '#FFFFFF',
+            color: wf.status === 'paused' ? '#16A34A' : '#6B7280',
+            border: '1px solid #E5E7EB',
+            borderRadius: 6,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            transition: 'all 150ms',
+          }}
+          title={wf.status === 'paused' ? 'Resume agent' : 'Pause agent'}
+        >
+          {wf.status === 'paused' ? '▶ Resume' : '⏸ Pause'}
+        </button>
         <div style={{ flex: 1 }} />
         <Link
           href={`/canvas?workflow_id=${wf.id}`}
@@ -253,6 +280,16 @@ export default function WorkflowsPage() {
     }
   }, [])
 
+  const handlePauseToggle = useCallback(async (wf: Workflow) => {
+    const newStatus = wf.status === 'paused' ? 'active' : 'paused'
+    try {
+      await api.updateWorkflow(wf.id, { status: newStatus })
+      setWorkflows(prev => prev.map(w => w.id === wf.id ? { ...w, status: newStatus } : w))
+    } catch (err) {
+      console.error('Failed to update workflow status', err)
+    }
+  }, [])
+
   const getNextRun = (wfId: string) =>
     jobs.find(j => j.job_id === `workflow_${wfId}`)?.next_run ?? null
 
@@ -307,6 +344,7 @@ export default function WorkflowsPage() {
                   nextRun={getNextRun(wf.id)}
                   runStatus={runStates[wf.id] ?? 'idle'}
                   onRun={() => handleRun(wf.id)}
+                  onPauseToggle={() => handlePauseToggle(wf)}
                 />
               ))}
             </div>

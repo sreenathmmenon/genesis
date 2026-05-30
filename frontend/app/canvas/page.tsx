@@ -112,6 +112,7 @@ function CanvasPageInner() {
   const clearCanvas = useGenesisStore((s) => s.clearCanvas)
   const setBuildStatus = useGenesisStore((s) => s.setBuildStatus)
   const setBuilding = useGenesisStore((s) => s.setBuilding)
+  const requestFitView = useGenesisStore((s) => s.requestFitView)
 
   const [workflow, setWorkflow] = useState<Workflow | null>(null)
   const [intentOpen, setIntentOpen] = useState(false)
@@ -126,15 +127,33 @@ function CanvasPageInner() {
         const canvas = wf.canvas_json as { nodes?: Node[]; edges?: Edge[] } | null
         if (canvas?.nodes) canvas.nodes.forEach(addNode)
         if (canvas?.edges) canvas.edges.forEach((e) => addEdge({ ...e, animated: true, style: EDGE_STYLE }))
+        // Signal canvas to fit view after nodes are loaded
+        requestFitView()
       })
       .catch(console.error)
-  }, [clearCanvas, addNode, addEdge])
+  }, [clearCanvas, addNode, addEdge, requestFitView])
 
   // Load workflow from URL param on mount
   useEffect(() => {
     if (!workflowId) return
     loadWorkflow(workflowId)
   }, [workflowId, loadWorkflow])
+
+  // Auto-load most recent workflow when no workflow_id in URL
+  useEffect(() => {
+    if (workflowId) return  // already loading from URL
+    api.getWorkflows().then((wfs) => {
+      const active = (wfs as Workflow[])
+        .filter(w => w.status === 'active' || w.status === 'paused')
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      if (active.length > 0) {
+        loadWorkflow(active[0].id)
+        setWorkflow(active[0])
+        // Update URL without navigation
+        router.replace(`/canvas?workflow_id=${active[0].id}`)
+      }
+    }).catch(console.error)
+  }, [])  // run once on mount
 
   // Listen for deploy event → navigate canvas to the new workflow
   useEffect(() => {
@@ -164,7 +183,7 @@ function CanvasPageInner() {
 
         {/* Left: 280px, agent config or inline build prompt */}
         <aside className="layout-left">
-          {!workflowId ? (
+          {!workflowId && !workflow ? (
             <InlineIntentPanel onSubmitted={() => setWorkflow(null)} />
           ) : (
             <AgentConfigPanel />
@@ -172,8 +191,8 @@ function CanvasPageInner() {
         </aside>
 
         {/* Center: flex-1, ReactFlow canvas */}
-        <main className="layout-center flex flex-col">
-          <div className="flex-1 overflow-hidden">
+        <main className="layout-center" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, overflow: 'hidden', minHeight: 0, height: '100%' }}>
             <GenesisCanvas />
           </div>
         </main>

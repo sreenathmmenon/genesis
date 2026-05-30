@@ -219,6 +219,18 @@ function RunRow({ run, workflowName }: { run: Run; workflowName: string }) {
         </span>
       </button>
 
+      {/* Output preview — shown collapsed */}
+      {!expanded && run.error && (
+        <div style={{ padding: '0 20px 10px' }}>
+          <span style={{
+            fontSize: 12, color: '#DC2626', fontStyle: 'italic',
+            overflow: 'hidden', display: 'block', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {run.error.slice(0, 120)}
+          </span>
+        </div>
+      )}
+
       {expanded && (
         <div style={{
           padding: '16px 20px',
@@ -295,8 +307,15 @@ export default function HistoryPage() {
     }
   }
 
+  function formatAgentName(name: string): string {
+    return name
+      .replace(/-/g, ' ')
+      .replace(/\b\w/g, c => c.toUpperCase())
+  }
+
   function resolveWorkflowName(workflowId: string): string {
-    return workflowNames[workflowId] ?? workflowId.slice(0, 8) + '…'
+    const raw = workflowNames[workflowId]
+    return raw ? formatAgentName(raw) : workflowId.slice(0, 8) + '…'
   }
 
   return (

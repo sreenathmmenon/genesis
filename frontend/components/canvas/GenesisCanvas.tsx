@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import {
   ReactFlow,
   Background,
@@ -14,6 +14,7 @@ import {
   type Edge,
   type Node,
   type NodeTypes,
+  type ReactFlowInstance,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
@@ -38,12 +39,34 @@ export function GenesisCanvas() {
   const updateStoreNode = useGenesisStore((s) => s.updateNode)
   const setSelectedNode = useGenesisStore((s) => s.setSelectedNode)
 
+  const fitViewRequest = useGenesisStore((s) => s.fitViewRequest)
+  const registerFitView = useGenesisStore((s) => s.registerFitView)
+
   const [nodes, setNodes, onNodesChange] = useNodesState(storeNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(storeEdges)
+  const rfInstanceRef = useRef<ReactFlowInstance | null>(null)
 
   // Sync store → ReactFlow state
   useEffect(() => { setNodes(storeNodes) }, [storeNodes, setNodes])
   useEffect(() => { setEdges(storeEdges) }, [storeEdges, setEdges])
+
+  // Register fitView fn with store so loadWorkflow can call it directly
+  useEffect(() => {
+    const fitFn = () => {
+      rfInstanceRef.current?.fitView({ padding: 0.15, duration: 0 })
+    }
+    registerFitView(fitFn)
+    return () => registerFitView(() => {})
+  }, [registerFitView])
+
+  // Also respond to fitViewRequest signal (fallback when fn wasn't registered yet)
+  useEffect(() => {
+    if (fitViewRequest > 0 && rfInstanceRef.current) {
+      setTimeout(() => {
+        rfInstanceRef.current?.fitView({ padding: 0.25, duration: 300 })
+      }, 80)
+    }
+  }, [fitViewRequest])
 
   const onConnect = useCallback(
     (connection: Connection) => {
@@ -145,6 +168,7 @@ export function GenesisCanvas() {
         onConnect={onConnect}
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
+        onInit={(instance) => { rfInstanceRef.current = instance }}
         fitView
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.2}

@@ -7,6 +7,8 @@ interface GenesisStore {
   nodes: Node[]
   edges: Edge[]
   selectedNodeId: string | null
+  fitViewRequest: number  // increment to trigger fitView in GenesisCanvas
+  _fitViewFn: (() => void) | null  // registered by GenesisCanvas
 
   // ── Build state ────────────────────────────────────────────────────────────
   currentBuildId: string | null
@@ -25,6 +27,8 @@ interface GenesisStore {
   addEdge: (edge: Edge) => void
   clearCanvas: () => void
   setSelectedNode: (id: string | null) => void
+  requestFitView: () => void
+  registerFitView: (fn: () => void) => void
 
   // ── Build actions ──────────────────────────────────────────────────────────
   setCurrentBuildId: (id: string | null) => void
@@ -45,6 +49,8 @@ export const useGenesisStore = create<GenesisStore>((set, get) => ({
   nodes: [],
   edges: [],
   selectedNodeId: null,
+  fitViewRequest: 0,
+  _fitViewFn: null,
 
   // ── Build state ────────────────────────────────────────────────────────────
   currentBuildId: null,
@@ -80,6 +86,19 @@ export const useGenesisStore = create<GenesisStore>((set, get) => ({
   clearCanvas: () => set({ nodes: [], edges: [], selectedNodeId: null }),
 
   setSelectedNode: (id) => set({ selectedNodeId: id }),
+
+  requestFitView: () => {
+    const fn = get()._fitViewFn
+    if (fn) {
+      // Immediate call + delayed call to catch both fast and slow renders
+      setTimeout(fn, 50)
+      setTimeout(fn, 500)
+    } else {
+      set((s) => ({ fitViewRequest: s.fitViewRequest + 1 }))
+    }
+  },
+
+  registerFitView: (fn) => set({ _fitViewFn: fn }),
 
   // ── Build actions ──────────────────────────────────────────────────────────
   setCurrentBuildId: (id) => set({ currentBuildId: id }),

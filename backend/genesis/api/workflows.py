@@ -70,6 +70,21 @@ async def replace_workflow(
     return wf
 
 
+@router.patch("/{workflow_id}", response_model=WorkflowRead)
+async def update_workflow(
+    workflow_id: uuid.UUID, body: WorkflowUpdate, db: AsyncSession = Depends(get_db)
+) -> Workflow:
+    wf = await db.get(Workflow, workflow_id)
+    if not wf:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(wf, field, value)
+    await db.flush()
+    await db.refresh(wf)
+    logger.info("Workflow updated: %s (%s)", wf.name, wf.id)
+    return wf
+
+
 @router.delete("/{workflow_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_workflow(
     workflow_id: uuid.UUID, db: AsyncSession = Depends(get_db)
