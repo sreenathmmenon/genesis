@@ -6,22 +6,22 @@ interface StatusBadgeProps {
 }
 
 const STATUS_CONFIG: Record<string, { color: string; dot: string; pulse: boolean }> = {
-  draft:             { color: 'var(--text-tertiary)',  dot: 'var(--text-tertiary)', pulse: false },
-  building:          { color: 'var(--warning)',        dot: 'var(--warning)',       pulse: true  },
-  decomposing:       { color: 'var(--warning)',        dot: 'var(--warning)',       pulse: true  },
-  validating:        { color: 'var(--info)',           dot: 'var(--info)',          pulse: true  },
-  reviewing:         { color: 'var(--info)',           dot: 'var(--info)',          pulse: true  },
-  active:            { color: 'var(--accent-text)',    dot: 'var(--accent-text)',   pulse: false },
-  awaiting_approval: { color: 'var(--layer-ops)',      dot: 'var(--layer-ops)',     pulse: true  },
-  paused:            { color: 'var(--warning)',        dot: 'var(--warning)',       pulse: false },
-  failed:            { color: 'var(--error)',          dot: 'var(--error)',         pulse: false },
-  completed:         { color: 'var(--success)',        dot: 'var(--success)',       pulse: false },
-  running:           { color: 'var(--accent-text)',    dot: 'var(--accent-text)',   pulse: true  },
-  cancelled:         { color: 'var(--text-tertiary)',  dot: 'var(--text-tertiary)', pulse: false },
+  draft:             { color: '#6B7280',  dot: '#9CA3AF',  pulse: false },
+  building:          { color: '#D97706',  dot: '#D97706',  pulse: true  },
+  decomposing:       { color: '#D97706',  dot: '#D97706',  pulse: true  },
+  validating:        { color: '#2563EB',  dot: '#2563EB',  pulse: true  },
+  reviewing:         { color: '#2563EB',  dot: '#2563EB',  pulse: true  },
+  active:            { color: '#16A34A',  dot: '#16A34A',  pulse: false },
+  awaiting_approval: { color: '#7C3AED',  dot: '#7C3AED',  pulse: true  },
+  paused:            { color: '#6B7280',  dot: '#9CA3AF',  pulse: false },
+  failed:            { color: '#DC2626',  dot: '#DC2626',  pulse: false },
+  completed:         { color: '#16A34A',  dot: '#16A34A',  pulse: false },
+  running:           { color: '#D97706',  dot: '#D97706',  pulse: true  },
+  cancelled:         { color: '#6B7280',  dot: '#9CA3AF',  pulse: false },
 }
 
 export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
-  const config = STATUS_CONFIG[status] ?? { color: 'var(--text-tertiary)', dot: 'var(--text-tertiary)', pulse: false }
+  const config = STATUS_CONFIG[status] ?? { color: '#6B7280', dot: '#9CA3AF', pulse: false }
   const label = status.replace(/_/g, ' ')
 
   return (
@@ -31,7 +31,7 @@ export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: 5,
-        fontSize: 11,
+        fontSize: 12,
         color: config.color,
         fontWeight: 500,
         letterSpacing: '0.01em',
@@ -39,12 +39,12 @@ export function StatusBadge({ status, className = '' }: StatusBadgeProps) {
     >
       <span
         style={{
-          width: 5,
-          height: 5,
+          width: 6,
+          height: 6,
           borderRadius: '50%',
           background: config.dot,
           flexShrink: 0,
-          animation: config.pulse ? 'pulse 1.5s infinite' : 'none',
+          animation: config.pulse ? 'pulse-subtle 1.5s cubic-bezier(0.4,0,0.6,1) infinite' : 'none',
         }}
       />
       {label}

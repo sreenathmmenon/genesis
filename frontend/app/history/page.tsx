@@ -22,14 +22,14 @@ function MessageCard({ msg }: { msg: Message }) {
   const [expanded, setExpanded] = useState(false)
 
   const typeStyles: Record<string, React.CSSProperties> = {
-    state_update: { background: 'var(--surface-0)', borderColor: 'var(--border-0)' },
-    agent_output: { background: 'var(--surface-1)', borderColor: 'var(--border-1)' },
-    tool_result:  { background: 'var(--surface-1)', borderColor: 'var(--border-1)' },
-    human_input:  { background: 'var(--accent-dim)', borderColor: 'var(--accent-border)' },
-    tool_call:    { background: 'var(--surface-2)', borderColor: 'var(--border-2)' },
+    state_update: { background: '#F9FAFB', borderColor: '#F3F4F6' },
+    agent_output: { background: '#FFFFFF', borderColor: '#E5E7EB' },
+    tool_result:  { background: '#FFFFFF', borderColor: '#E5E7EB' },
+    human_input:  { background: '#F0FDF4', borderColor: '#BBF7D0' },
+    tool_call:    { background: '#F9FAFB', borderColor: '#E5E7EB' },
   }
 
-  const boxStyle = typeStyles[msg.message_type] ?? { background: 'var(--surface-1)', borderColor: 'var(--border-1)' }
+  const boxStyle = typeStyles[msg.message_type] ?? { background: '#FFFFFF', borderColor: '#E5E7EB' }
 
   return (
     <button
@@ -41,7 +41,7 @@ function MessageCard({ msg }: { msg: Message }) {
         flexDirection: 'column',
         gap: 6,
         padding: '10px 14px',
-        borderRadius: 5,
+        borderRadius: 6,
         border: '1px solid',
         cursor: 'pointer',
         fontFamily: 'inherit',
@@ -51,9 +51,9 @@ function MessageCard({ msg }: { msg: Message }) {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
         <span style={{
-          fontSize: 12,
+          fontSize: 13,
           fontWeight: 500,
-          color: 'var(--text-primary)',
+          color: '#111827',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
@@ -61,10 +61,10 @@ function MessageCard({ msg }: { msg: Message }) {
         }}>
           {msg.sender_agent}
         </span>
-        <span style={{ fontSize: 11, color: 'var(--text-tertiary)', flexShrink: 0 }}>→</span>
+        <span style={{ fontSize: 12, color: '#9CA3AF', flexShrink: 0 }}>→</span>
         <span style={{
-          fontSize: 12,
-          color: 'var(--text-secondary)',
+          fontSize: 13,
+          color: '#374151',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
@@ -75,9 +75,9 @@ function MessageCard({ msg }: { msg: Message }) {
         <div style={{ flex: 1 }} />
         <Badge variant="default">{msg.message_type.replace(/_/g, ' ')}</Badge>
         <span style={{
-          fontSize: 11,
+          fontSize: 12,
           fontFamily: 'var(--font-mono)',
-          color: 'var(--text-tertiary)',
+          color: '#6B7280',
           flexShrink: 0,
         }}>
           {new Date(msg.timestamp).toLocaleTimeString('en', { hour12: false })}
@@ -85,12 +85,12 @@ function MessageCard({ msg }: { msg: Message }) {
       </div>
       {msg.message_type === 'tool_call' ? (
         <pre style={{
-          fontSize: 11,
+          fontSize: 12,
           fontFamily: 'var(--font-mono)',
-          color: 'var(--text-secondary)',
-          background: 'var(--surface-0)',
-          border: '1px solid var(--border-1)',
-          borderRadius: 3,
+          color: '#374151',
+          background: '#F9FAFB',
+          border: '1px solid #E5E7EB',
+          borderRadius: 4,
           padding: '6px 10px',
           overflowX: 'auto',
           display: '-webkit-box',
@@ -103,8 +103,8 @@ function MessageCard({ msg }: { msg: Message }) {
         </pre>
       ) : (
         <p style={{
-          fontSize: 11,
-          color: 'var(--text-tertiary)',
+          fontSize: 13,
+          color: '#6B7280',
           lineHeight: 1.6,
           wordBreak: 'break-word',
           display: '-webkit-box',
@@ -140,13 +140,13 @@ function RunRow({ run, workflowName }: { run: Run; workflowName: string }) {
   }
 
   return (
-    <div style={{ borderBottom: '1px solid var(--border-0)' }}>
+    <div style={{ borderBottom: '1px solid #F3F4F6' }}>
       <button
         onClick={toggleExpand}
         style={{
           width: '100%',
           display: 'grid',
-          gridTemplateColumns: '200px 100px 1fr 80px 90px 90px 20px',
+          gridTemplateColumns: '200px 110px 1fr 80px 90px 90px 20px',
           alignItems: 'center',
           gap: 16,
           padding: '12px 20px',
@@ -157,16 +157,17 @@ function RunRow({ run, workflowName }: { run: Run; workflowName: string }) {
           textAlign: 'left',
           transition: 'background 100ms',
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-2)')}
+        onMouseEnter={(e) => (e.currentTarget.style.background = '#F9FAFB')}
         onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
       >
         {/* Workflow name */}
         <span style={{
-          fontSize: 13,
-          color: 'var(--text-primary)',
+          fontSize: 14,
+          color: '#111827',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
+          fontWeight: 500,
         }}>
           {workflowName}
         </span>
@@ -177,15 +178,15 @@ function RunRow({ run, workflowName }: { run: Run; workflowName: string }) {
         </div>
 
         {/* Started */}
-        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+        <span style={{ fontSize: 13, color: '#374151' }}>
           {new Date(run.started_at).toLocaleString('en', { dateStyle: 'short', timeStyle: 'short' })}
         </span>
 
         {/* Duration */}
         <span style={{
-          fontSize: 12,
+          fontSize: 13,
           fontFamily: 'var(--font-mono)',
-          color: 'var(--text-tertiary)',
+          color: '#6B7280',
           textAlign: 'right',
         }}>
           {formatDuration(run.started_at, run.completed_at)}
@@ -193,9 +194,9 @@ function RunRow({ run, workflowName }: { run: Run; workflowName: string }) {
 
         {/* Tokens */}
         <span style={{
-          fontSize: 12,
+          fontSize: 13,
           fontFamily: 'var(--font-mono)',
-          color: 'var(--text-tertiary)',
+          color: '#6B7280',
           textAlign: 'right',
         }}>
           {run.token_count_total.toLocaleString()}
@@ -203,16 +204,17 @@ function RunRow({ run, workflowName }: { run: Run; workflowName: string }) {
 
         {/* Cost */}
         <span style={{
-          fontSize: 12,
+          fontSize: 13,
           fontFamily: 'var(--font-mono)',
-          color: 'var(--accent-text)',
+          color: '#111827',
           textAlign: 'right',
+          fontWeight: 500,
         }}>
           ${run.estimated_cost_usd.toFixed(4)}
         </span>
 
         {/* Expand chevron */}
-        <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+        <span style={{ fontSize: 11, color: '#9CA3AF' }}>
           {expanded ? '▴' : '▾'}
         </span>
       </button>
@@ -223,8 +225,8 @@ function RunRow({ run, workflowName }: { run: Run; workflowName: string }) {
           display: 'flex',
           flexDirection: 'column',
           gap: 8,
-          background: 'var(--surface-0)',
-          borderTop: '1px solid var(--border-0)',
+          background: '#F9FAFB',
+          borderTop: '1px solid #F3F4F6',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <Label>Messages</Label>
@@ -233,10 +235,10 @@ function RunRow({ run, workflowName }: { run: Run; workflowName: string }) {
             )}
           </div>
           {loadingMsgs && (
-            <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Loading messages…</span>
+            <span style={{ fontSize: 13, color: '#9CA3AF' }}>Loading messages…</span>
           )}
           {!loadingMsgs && messages.length === 0 && (
-            <p style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>No messages recorded for this run.</p>
+            <p style={{ fontSize: 13, color: '#9CA3AF' }}>No messages recorded for this run.</p>
           )}
           {messages.map((msg) => (
             <MessageCard key={msg.id} msg={msg} />
@@ -298,7 +300,7 @@ export default function HistoryPage() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--surface-0)' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F7F8FA' }}>
       <Nav />
 
       <div className="page-content">
@@ -307,37 +309,46 @@ export default function HistoryPage() {
           {/* Header */}
           <div style={{ marginBottom: 28 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-              <h1 style={{ fontSize: 22, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+              <h1 style={{ fontSize: 24, fontWeight: 600, color: '#111827', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
                 Run History
               </h1>
               {runs.length > 0 && (
-                <span style={{ fontSize: 11, color: 'var(--text-tertiary)', background: 'var(--surface-2)', border: '1px solid var(--border-1)', borderRadius: 3, padding: '2px 7px' }}>
+                <span style={{
+                  fontSize: 12,
+                  color: '#6B7280',
+                  background: '#F3F4F6',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: 4,
+                  padding: '2px 8px',
+                  fontWeight: 500,
+                }}>
                   {runs.length} runs
                 </span>
               )}
             </div>
-            <p style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>All workflow executions with output and cost breakdown</p>
+            <p style={{ fontSize: 14, color: '#6B7280' }}>All workflow executions with output and cost breakdown</p>
           </div>
 
           {/* Table container */}
           <div style={{
-            background: 'var(--surface-1)',
-            border: '1px solid var(--border-1)',
-            borderRadius: 5,
+            background: '#FFFFFF',
+            border: '1px solid #E5E7EB',
+            borderRadius: 8,
             overflow: 'hidden',
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
           }}>
             {/* Sticky table header */}
             {runs.length > 0 && (
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: '200px 100px 1fr 80px 90px 90px 20px',
+                gridTemplateColumns: '200px 110px 1fr 80px 90px 90px 20px',
                 gap: 16,
                 padding: '10px 20px',
-                borderBottom: '1px solid var(--border-1)',
-                background: 'var(--surface-1)',
+                borderBottom: '1px solid #E5E7EB',
+                background: '#F9FAFB',
                 position: 'sticky',
                 top: 0,
                 zIndex: 1,
@@ -345,11 +356,11 @@ export default function HistoryPage() {
               }}>
                 {['Workflow', 'Status', 'Started', 'Duration', 'Tokens', 'Cost', ''].map((col) => (
                   <span key={col} style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: 500,
                     letterSpacing: '0.08em',
                     textTransform: 'uppercase',
-                    color: 'var(--text-tertiary)',
+                    color: '#6B7280',
                     textAlign: col === 'Duration' || col === 'Tokens' || col === 'Cost' ? 'right' : 'left',
                   }}>
                     {col}
@@ -360,7 +371,7 @@ export default function HistoryPage() {
 
             {loading && (
               <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
-                <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Loading runs…</span>
+                <span style={{ fontSize: 13, color: '#9CA3AF' }}>Loading runs…</span>
               </div>
             )}
 
@@ -392,8 +403,9 @@ export default function HistoryPage() {
                 justifyContent: 'center',
                 gap: 12,
                 padding: '16px',
-                borderTop: '1px solid var(--border-0)',
+                borderTop: '1px solid #F3F4F6',
                 flexShrink: 0,
+                background: '#F9FAFB',
               }}>
                 <Button
                   variant="ghost"

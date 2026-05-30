@@ -37,7 +37,25 @@ function TemplateCard({
   onDeploy: () => void
 }) {
   return (
-    <div className="card card-hover" style={{ padding: 0, overflow: 'hidden' }}>
+    <div style={{
+      background: '#FFFFFF',
+      border: '1px solid #E5E7EB',
+      borderRadius: 8,
+      overflow: 'hidden',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+      transition: 'box-shadow 150ms, border-color 150ms',
+    }}
+    onMouseEnter={e => {
+      const el = e.currentTarget as HTMLElement
+      el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'
+      el.style.borderColor = '#D1D5DB'
+    }}
+    onMouseLeave={e => {
+      const el = e.currentTarget as HTMLElement
+      el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)'
+      el.style.borderColor = '#E5E7EB'
+    }}
+    >
       {/* Header area */}
       <div style={{ padding: '20px 24px 16px' }}>
         {/* Category badge + agent count row */}
@@ -53,7 +71,7 @@ function TemplateCard({
           <h2 style={{
             fontSize: 17,
             fontWeight: 600,
-            color: 'var(--text-primary)',
+            color: '#111827',
             letterSpacing: '-0.01em',
             lineHeight: 1.3,
             flex: 1,
@@ -64,17 +82,8 @@ function TemplateCard({
           <button
             onClick={onDeploy}
             disabled={deploying}
-            style={{
-              padding: '6px 16px', fontSize: 12, fontWeight: 500,
-              background: deploying ? 'var(--surface-2)' : 'var(--surface-3)',
-              color: deploying ? 'var(--text-tertiary)' : 'var(--text-primary)',
-              border: `1px solid ${deploying ? 'var(--border-1)' : 'var(--border-2)'}`,
-              borderRadius: 4, cursor: deploying ? 'not-allowed' : 'pointer',
-              flexShrink: 0, opacity: deploying ? 0.5 : 1,
-              fontFamily: 'inherit', transition: 'background 120ms, border-color 120ms, color 120ms',
-            }}
-            onMouseEnter={e => { if (!deploying) { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--accent-border)'; el.style.color = 'var(--accent-text)' } }}
-            onMouseLeave={e => { if (!deploying) { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--border-2)'; el.style.color = 'var(--text-primary)' } }}
+            className="btn btn--primary btn--sm"
+            style={{ flexShrink: 0, opacity: deploying ? 0.6 : 1 }}
           >
             {deploying ? 'Deploying…' : 'Deploy →'}
           </button>
@@ -82,10 +91,10 @@ function TemplateCard({
 
         {/* Description */}
         <p style={{
-          fontSize: 13,
-          color: 'var(--text-secondary)',
+          fontSize: 14,
+          color: '#6B7280',
           lineHeight: 1.6,
-          marginTop: 8,
+          marginTop: 10,
           display: '-webkit-box',
           WebkitLineClamp: 3,
           WebkitBoxOrient: 'vertical',
@@ -98,12 +107,14 @@ function TemplateCard({
       {/* Intent preview */}
       <div style={{
         margin: '0 24px 16px',
-        borderLeft: '2px solid var(--border-2)',
+        borderLeft: '2px solid #E5E7EB',
         padding: '8px 14px',
+        background: '#F9FAFB',
+        borderRadius: '0 4px 4px 0',
       }}>
         <p style={{
-          fontSize: 12,
-          color: 'var(--text-secondary)',
+          fontSize: 13,
+          color: '#374151',
           lineHeight: 1.65,
           fontStyle: 'italic',
           margin: 0,
@@ -115,15 +126,23 @@ function TemplateCard({
       {/* Agent pills */}
       <div style={{
         padding: '12px 24px 20px',
-        borderTop: '1px solid var(--border-0)',
-        background: 'var(--surface-0)',
+        borderTop: '1px solid #F3F4F6',
+        background: '#F9FAFB',
       }}>
         <Label style={{ marginBottom: 8 }}>Agents</Label>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {tmpl.agents.map((agent) => (
-            <Badge key={agent} variant="default">
+            <span key={agent} style={{
+              fontSize: 12,
+              color: '#374151',
+              background: '#F3F4F6',
+              border: '1px solid #E5E7EB',
+              borderRadius: 4,
+              padding: '2px 8px',
+              fontWeight: 400,
+            }}>
               {agent}
-            </Badge>
+            </span>
           ))}
         </div>
       </div>
@@ -156,25 +175,25 @@ export default function TemplatesPage() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--surface-0)' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F7F8FA' }}>
       <Nav />
 
       <div className="page-content">
-        <div style={{ maxWidth: 840, width: '100%', margin: '0 auto', padding: '40px 32px 64px' }}>
+        <div style={{ maxWidth: 860, width: '100%', margin: '0 auto', padding: '40px 32px 64px' }}>
 
           {/* Page header */}
           <div style={{ marginBottom: 32 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 4, lineHeight: 1.2 }}>
+            <h1 style={{ fontSize: 24, fontWeight: 600, color: '#111827', letterSpacing: '-0.02em', marginBottom: 4, lineHeight: 1.2 }}>
               Templates
             </h1>
-            <p style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+            <p style={{ fontSize: 14, color: '#6B7280' }}>
               Pre-built agent workflows, ready to deploy in one click
             </p>
           </div>
 
           {loading && (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
-              <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Loading templates…</span>
+              <span style={{ fontSize: 13, color: '#9CA3AF' }}>Loading templates…</span>
             </div>
           )}
 

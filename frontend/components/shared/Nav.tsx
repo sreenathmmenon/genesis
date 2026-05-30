@@ -14,7 +14,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/',
     label: 'Dashboard',
     icon: (
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg width="16" height="16" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M7.5 1.5L13.5 6V13H9.5V9H5.5V13H1.5V6L7.5 1.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" fill="none"/>
       </svg>
     ),
@@ -23,7 +23,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/workflows',
     label: 'My Agents',
     icon: (
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg width="16" height="16" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="7.5" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
         <path d="M2 13C2 10.2 4.5 8 7.5 8C10.5 8 13 10.2 13 13" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" fill="none"/>
       </svg>
@@ -33,7 +33,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/canvas',
     label: 'Canvas',
     icon: (
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg width="16" height="16" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="1.5" y="1.5" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
         <circle cx="4.5" cy="4.5" r="1.2" fill="currentColor"/>
         <circle cx="10.5" cy="4.5" r="1.2" fill="currentColor"/>
@@ -47,7 +47,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/templates',
     label: 'Templates',
     icon: (
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg width="16" height="16" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2" fill="none"/>
         <rect x="8" y="1.5" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2" fill="none"/>
         <rect x="1.5" y="8" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2" fill="none"/>
@@ -59,7 +59,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/history',
     label: 'History',
     icon: (
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg width="16" height="16" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
         <path d="M7.5 4V7.5L10 9.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
       </svg>
@@ -79,34 +79,37 @@ export function Nav() {
     <nav className="nav-sidebar">
       {/* Logo */}
       <div style={{
-        padding: '18px 16px 16px',
-        borderBottom: '1px solid var(--border-0)',
+        padding: '14px 16px',
+        borderBottom: '1px solid #E5E7EB',
         flexShrink: 0,
+        height: 48,
+        display: 'flex',
+        alignItems: 'center',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
-            width: 22,
-            height: 22,
-            background: 'var(--accent-dim)',
-            border: '1px solid var(--accent-border)',
-            borderRadius: 4,
+            width: 24,
+            height: 24,
+            background: '#F0FDF4',
+            border: '1px solid #BBF7D0',
+            borderRadius: 6,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
           }}>
             <span style={{
-              fontSize: 12,
-              color: 'var(--accent)',
+              fontSize: 13,
+              color: '#16A34A',
               fontWeight: 700,
               lineHeight: 1,
               fontFamily: 'var(--font-mono)',
             }}>G</span>
           </div>
           <span style={{
-            fontSize: 14,
+            fontSize: 16,
             fontWeight: 600,
-            color: 'var(--text-primary)',
+            color: '#111827',
             letterSpacing: '-0.02em',
             fontFamily: 'var(--font-sans)',
           }}>Genesis</span>
@@ -114,7 +117,7 @@ export function Nav() {
             width: 6,
             height: 6,
             borderRadius: '50%',
-            background: 'var(--accent)',
+            background: '#16A34A',
             flexShrink: 0,
             marginLeft: 2,
           }} />
@@ -122,7 +125,7 @@ export function Nav() {
       </div>
 
       {/* Nav items */}
-      <div style={{ flex: 1, paddingTop: 8 }}>
+      <div style={{ flex: 1, paddingTop: 8, paddingBottom: 8 }}>
         {NAV_ITEMS.map((item) => (
           <Link
             key={item.href}
@@ -130,7 +133,7 @@ export function Nav() {
             className={`nav-item${isActive(item.href) ? ' nav-item--active' : ''}`}
           >
             <span style={{
-              color: isActive(item.href) ? 'var(--accent-text)' : 'currentColor',
+              color: isActive(item.href) ? '#16A34A' : 'currentColor',
               flexShrink: 0,
               display: 'flex',
               alignItems: 'center',
@@ -144,24 +147,23 @@ export function Nav() {
 
       {/* Bottom */}
       <div style={{
-        padding: '12px 16px',
-        borderTop: '1px solid var(--border-0)',
+        padding: '10px 16px',
+        borderTop: '1px solid #E5E7EB',
         flexShrink: 0,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
       }}>
         <span style={{
-          fontSize: 10,
+          fontSize: 11,
           fontFamily: 'var(--font-mono)',
-          color: 'var(--text-tertiary)',
-          letterSpacing: '0.06em',
-          opacity: 0.5,
+          color: '#9CA3AF',
+          letterSpacing: '0.04em',
         }}>genesis v0.1</span>
         <span style={{
           width: 6, height: 6, borderRadius: '50%',
-          background: 'var(--success)',
-          boxShadow: '0 0 0 2px #062010',
+          background: '#16A34A',
+          boxShadow: '0 0 0 2px #F0FDF4',
           display: 'inline-block',
         }} title="Backend connected" />
       </div>

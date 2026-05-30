@@ -63,58 +63,57 @@ export default function HomePage() {
   }, [])
 
   const STAT_CARDS = [
-    { label: 'Total agents', value: stats.totalAgents, suffix: '', accent: false },
-    { label: 'Active', value: stats.activeNow, suffix: '', accent: true },
-    { label: 'Runs today', value: stats.runsToday, suffix: '', accent: false },
-    { label: 'Tools', value: stats.toolsAvailable, suffix: '', accent: false },
+    { label: 'Total Agents', value: stats.totalAgents, accent: false },
+    { label: 'Active Now', value: stats.activeNow, accent: true },
+    { label: 'Runs Today', value: stats.runsToday, accent: false },
+    { label: 'Tools', value: stats.toolsAvailable, accent: false },
   ]
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--surface-0)' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F7F8FA' }}>
       <Nav />
       <div className="page-content">
-        <div style={{ maxWidth: 860, width: '100%', margin: '0 auto', padding: '36px 32px 64px' }}>
+        <div style={{ maxWidth: 880, width: '100%', margin: '0 auto', padding: '36px 32px 64px' }}>
 
           {/* Header */}
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32 }}>
             <div>
-              <h1 style={{ fontSize: 22, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 4, lineHeight: 1.2 }}>
+              <h1 style={{ fontSize: 24, fontWeight: 600, color: '#111827', letterSpacing: '-0.02em', marginBottom: 4, lineHeight: 1.2 }}>
                 Dashboard
               </h1>
-              <p style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+              <p style={{ fontSize: 14, color: '#6B7280' }}>
                 Your agent platform at a glance
               </p>
             </div>
-            <Link href="/canvas" className="btn btn--primary btn--sm" style={{ textDecoration: 'none' }}>
+            <Link href="/canvas" className="btn btn--primary" style={{ textDecoration: 'none' }}>
               + New Agent
             </Link>
           </div>
 
           {/* Stat cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 36 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 36 }}>
             {STAT_CARDS.map((card) => (
               <div key={card.label} style={{
-                background: 'var(--surface-1)',
-                border: '1px solid var(--border-1)',
-                borderRadius: 6,
+                background: card.accent ? '#F0FDF4' : '#FFFFFF',
+                border: `1px solid ${card.accent ? '#BBF7D0' : '#E5E7EB'}`,
+                borderRadius: 8,
                 padding: '20px 20px 16px',
-                borderLeft: card.accent ? '3px solid var(--success)' : '3px solid var(--border-2)',
+                borderLeft: card.accent ? '3px solid #16A34A' : '3px solid #E5E7EB',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
               }}>
                 <div style={{
-                  fontSize: 28,
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
+                  fontSize: 32,
+                  fontWeight: 700,
+                  color: '#111827',
                   letterSpacing: '-0.03em',
                   lineHeight: 1,
                   marginBottom: 8,
-                  fontFamily: 'var(--font-sans)',
                 }}>
                   {loading ? '—' : card.value}
                 </div>
                 <div style={{
-                  fontSize: 11,
-                  color: 'var(--text-tertiary)',
-                  letterSpacing: '0.05em',
+                  fontSize: 13,
+                  color: '#6B7280',
                   fontWeight: 500,
                 }}>
                   {card.label}
@@ -126,27 +125,42 @@ export default function HomePage() {
           {/* Recent Activity */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <h2 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: '#111827', letterSpacing: '-0.01em' }}>
                 Recent Activity
               </h2>
-              <Link href="/history" style={{ fontSize: 12, color: 'var(--text-tertiary)', textDecoration: 'none' }}
-                onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
-                onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-tertiary)')}>
+              <Link
+                href="/history"
+                style={{ fontSize: 13, color: '#6B7280', textDecoration: 'none', transition: 'color 150ms' }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#374151')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#6B7280')}
+              >
                 View all →
               </Link>
             </div>
 
-            <div style={{ background: 'var(--surface-1)', border: '1px solid var(--border-1)', borderRadius: 6, overflow: 'hidden' }}>
+            <div style={{
+              background: '#FFFFFF',
+              border: '1px solid #E5E7EB',
+              borderRadius: 8,
+              overflow: 'hidden',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+            }}>
               {/* Header row */}
               {!loading && runs.length > 0 && (
                 <div style={{
-                  display: 'grid', gridTemplateColumns: '1fr 90px 110px 70px',
-                  gap: 12, padding: '9px 16px',
-                  borderBottom: '1px solid var(--border-0)',
-                  background: 'var(--surface-1)',
+                  display: 'grid', gridTemplateColumns: '1fr 100px 120px 80px',
+                  gap: 12, padding: '10px 20px',
+                  borderBottom: '1px solid #E5E7EB',
+                  background: '#F9FAFB',
                 }}>
                   {['Workflow', 'Status', 'When', 'Duration'].map(col => (
-                    <span key={col} style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)' }}>
+                    <span key={col} style={{
+                      fontSize: 11,
+                      fontWeight: 500,
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                      color: '#6B7280',
+                    }}>
                       {col}
                     </span>
                   ))}
@@ -154,15 +168,18 @@ export default function HomePage() {
               )}
 
               {loading && (
-                <div style={{ padding: '40px 0', textAlign: 'center' }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Loading…</span>
+                <div style={{ padding: '48px 0', textAlign: 'center' }}>
+                  <span style={{ fontSize: 13, color: '#9CA3AF' }}>Loading…</span>
                 </div>
               )}
 
               {!loading && runs.length === 0 && (
-                <div style={{ padding: '48px 24px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 8 }}>No runs yet</div>
-                  <Link href="/canvas" className="btn btn--primary btn--sm" style={{ textDecoration: 'none' }}>Build your first agent →</Link>
+                <div style={{ padding: '56px 24px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 28, marginBottom: 12, opacity: 0.25 }}>▦</div>
+                  <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 16 }}>No runs yet</p>
+                  <Link href="/canvas" className="btn btn--primary" style={{ textDecoration: 'none' }}>
+                    Build your first agent →
+                  </Link>
                 </div>
               )}
 
@@ -170,20 +187,21 @@ export default function HomePage() {
                 <Link key={run.id} href="/history" style={{ textDecoration: 'none', display: 'block' }}>
                   <div
                     style={{
-                      display: 'grid', gridTemplateColumns: '1fr 90px 110px 70px',
-                      gap: 12, padding: '9px 16px',
-                      borderBottom: i < runs.length - 1 ? '1px solid var(--border-0)' : 'none',
+                      display: 'grid', gridTemplateColumns: '1fr 100px 120px 80px',
+                      gap: 12, padding: '11px 20px',
+                      borderBottom: i < runs.length - 1 ? '1px solid #F3F4F6' : 'none',
                       transition: 'background 120ms',
+                      background: '#FFFFFF',
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '#FFFFFF')}
                   >
-                    <span style={{ fontSize: 13, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: 14, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {workflowNames[run.workflow_id] ?? run.workflow_id.slice(0, 8) + '…'}
                     </span>
                     <StatusBadge status={run.status} />
-                    <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{formatRelativeTime(run.started_at)}</span>
-                    <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)' }}>
+                    <span style={{ fontSize: 13, color: '#6B7280' }}>{formatRelativeTime(run.started_at)}</span>
+                    <span style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: '#6B7280' }}>
                       {formatDuration(run.started_at, run.completed_at)}
                     </span>
                   </div>

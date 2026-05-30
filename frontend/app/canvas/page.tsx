@@ -39,10 +39,10 @@ function InlineIntentPanel({ onSubmitted }: { onSubmitted: () => void }) {
   return (
     <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 16, height: '100%' }}>
       <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+        <div style={{ fontSize: 15, fontWeight: 600, color: '#111827', marginBottom: 4 }}>
           What do you want to build?
         </div>
-        <div style={{ fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
+        <div style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.5 }}>
           Describe your agent workflow in plain English
         </div>
       </div>
@@ -53,52 +53,54 @@ function InlineIntentPanel({ onSubmitted }: { onSubmitted: () => void }) {
         rows={7}
         style={{
           width: '100%',
-          background: 'var(--surface-2)',
-          border: '1px solid var(--border-2)',
+          background: '#FFFFFF',
+          border: '1px solid #D1D5DB',
           borderRadius: 6,
           padding: '10px 12px',
-          color: 'var(--text-primary)',
-          fontSize: 12,
+          color: '#111827',
+          fontSize: 14,
           fontFamily: 'var(--font-sans)',
           lineHeight: 1.6,
           resize: 'none',
           outline: 'none',
+          boxShadow: 'none',
+          transition: 'border-color 150ms, box-shadow 150ms',
         }}
-        onFocus={e => { e.target.style.borderColor = 'var(--accent-border)' }}
-        onBlur={e => { e.target.style.borderColor = 'var(--border-2)' }}
+        onFocus={e => { e.target.style.borderColor = '#16A34A'; e.target.style.boxShadow = '0 0 0 3px rgba(22,163,74,0.1)' }}
+        onBlur={e => { e.target.style.borderColor = '#D1D5DB'; e.target.style.boxShadow = 'none' }}
         onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleBuild() }}
       />
-      {error && <p style={{ fontSize: 11, color: 'var(--error)' }}>{error}</p>}
+      {error && <p style={{ fontSize: 13, color: '#DC2626' }}>{error}</p>}
       <button
         onClick={handleBuild}
         disabled={loading}
         style={{
           padding: '10px 0',
-          background: loading ? 'var(--surface-2)' : 'var(--surface-3)',
-          color: loading ? 'var(--text-tertiary)' : 'var(--text-primary)',
+          background: loading ? '#F9FAFB' : '#16A34A',
+          color: loading ? '#9CA3AF' : '#FFFFFF',
           border: '1px solid',
-          borderColor: loading ? 'var(--border-1)' : 'var(--border-2)',
-          borderRadius: 5,
-          fontSize: 12,
+          borderColor: loading ? '#E5E7EB' : 'transparent',
+          borderRadius: 6,
+          fontSize: 13,
           fontWeight: 500,
           cursor: loading ? 'not-allowed' : 'pointer',
           fontFamily: 'inherit',
-          transition: 'all 120ms',
+          transition: 'all 150ms',
           letterSpacing: '0.01em',
         }}
-        onMouseEnter={e => { if (!loading) { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--accent-border)'; el.style.color = 'var(--accent-text)' } }}
-        onMouseLeave={e => { if (!loading) { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--border-2)'; el.style.color = 'var(--text-primary)' } }}
+        onMouseEnter={e => { if (!loading) { const el = e.currentTarget as HTMLElement; el.style.background = '#15803D' } }}
+        onMouseLeave={e => { if (!loading) { const el = e.currentTarget as HTMLElement; el.style.background = '#16A34A' } }}
       >
         {loading ? 'Building…' : 'Build with Genesis'}
       </button>
-      <p style={{ fontSize: 10, color: 'var(--text-tertiary)', textAlign: 'center', margin: 0 }}>
+      <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', margin: 0 }}>
         ⌘ + Enter to submit
       </p>
     </div>
   )
 }
 
-const EDGE_STYLE = { stroke: '#adff2f', strokeWidth: 1.5 }
+const EDGE_STYLE = { stroke: '#16A34A', strokeWidth: 1.5 }
 
 function CanvasPageInner() {
   const searchParams = useSearchParams()
