@@ -69,6 +69,7 @@ class WorkflowCreate(BaseModel):
     graph_json: dict[str, Any] | None = None
     canvas_json: dict[str, Any] | None = None
     schedule_expr: str | None = None
+    webhook_url: str | None = None
 
 
 class WorkflowRead(BaseModel):
@@ -83,6 +84,7 @@ class WorkflowRead(BaseModel):
     canvas_json: dict[str, Any] | None
     template_name: str | None
     schedule_expr: str | None
+    webhook_url: str | None
     agents: list[AgentRead] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
@@ -95,6 +97,7 @@ class WorkflowUpdate(BaseModel):
     graph_json: dict[str, Any] | None = None
     canvas_json: dict[str, Any] | None = None
     schedule_expr: str | None = None
+    webhook_url: str | None = None
 
 
 # ── Run + Message ──────────────────────────────────────────────────────────────
@@ -122,6 +125,7 @@ class RunRead(BaseModel):
     error: str | None
     token_count_total: int
     estimated_cost_usd: float
+    output_data: dict[str, Any] | None
     messages: list[MessageRead] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime

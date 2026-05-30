@@ -58,8 +58,20 @@ export const api = {
       `${API_BASE}/api/v1/runs${workflowId ? `?workflow_id=${workflowId}` : ''}`
     ).then(json),
 
+  getRun: (runId: string) =>
+    fetch(`${API_BASE}/api/v1/runs/${runId}`).then(json),
+
+  getRunOutput: (runId: string) =>
+    fetch(`${API_BASE}/api/v1/runs/${runId}/output`).then(json),
+
   getMessages: (runId: string) =>
     fetch(`${API_BASE}/api/v1/runs/${runId}/messages`).then(json),
+
+  rerunRun: (runId: string) =>
+    fetch(`${API_BASE}/api/v1/runs/${runId}/rerun`, { method: 'POST' }).then(json),
+
+  downloadRunUrl: (runId: string, fmt: 'text' | 'json' | 'csv') =>
+    `${API_BASE}/api/v1/runs/${runId}/download?fmt=${fmt}`,
 
   // ── Templates ──────────────────────────────────────────────────────────────
   getTemplates: () =>

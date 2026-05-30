@@ -34,6 +34,7 @@ export interface Workflow {
   canvas_json: Record<string, unknown> | null
   template_name: string | null
   schedule_expr: string | null
+  webhook_url: string | null
   agents: Agent[]
   created_at: string
   updated_at: string
@@ -55,6 +56,22 @@ export interface Message {
   timestamp: string
 }
 
+export interface RunOutput {
+  run_id: string
+  workflow_id: string
+  workflow_name: string
+  status: string
+  summary: string
+  agent_outputs: Record<string, string>
+  error: string | null
+  token_count: number
+  estimated_cost_usd: number
+  duration_seconds: number
+  started_at: string
+  completed_at: string | null
+  result_url: string
+}
+
 export interface Run {
   id: string
   workflow_id: string
@@ -64,6 +81,7 @@ export interface Run {
   error: string | null
   token_count_total: number
   estimated_cost_usd: number
+  output_data: RunOutput | null
   messages: Message[]
   created_at: string
   updated_at: string

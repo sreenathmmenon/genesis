@@ -12,6 +12,7 @@ from genesis.models.run import Message, MessageType, Run, RunStatus
 from genesis.models.workflow import Workflow
 from genesis.utils.audit import audit
 from genesis.utils.logger import get_logger
+from genesis.utils.output_delivery import build_output_payload, fire_webhook
 from genesis.utils.redis_client import RUN_EVENTS, redis_client
 
 logger = get_logger("genesis.workflow_executor")
@@ -30,6 +31,9 @@ async def execute_deployed_workflow(
     run_id = run_id or str(uuid.uuid4())
     started_at = datetime.now(tz=timezone.utc)
 
+    workflow_name = ""
+    webhook_url: str | None = None
+
     async with async_session() as session:
         workflow = await session.get(Workflow, uuid.UUID(workflow_id))
         if not workflow:
@@ -37,6 +41,8 @@ async def execute_deployed_workflow(
             return {"error": "workflow_not_found", "workflow_id": workflow_id}
 
         graph_json: dict = workflow.graph_json or {}
+        workflow_name = workflow.name
+        webhook_url = workflow.webhook_url
 
         run = Run(
             id=uuid.UUID(run_id),
@@ -123,6 +129,7 @@ async def execute_deployed_workflow(
 
     from genesis.agents.monitor_agent import estimate_cost, record_run_stats
     final_status = RunStatus.failed if error else RunStatus.completed
+    estimated_cost = estimate_cost(total_tokens)
 
     await record_run_stats(
         workflow_id=workflow_id,
@@ -134,17 +141,43 @@ async def execute_deployed_workflow(
         completed_at=completed_at,
     )
 
+    # Build structured output payload — universal, not tied to any messaging channel
+    output_payload = build_output_payload(
+        run_id=run_id,
+        workflow_id=workflow_id,
+        workflow_name=workflow_name,
+        status=final_status.value,
+        final_output=final_output,
+        messages=[],
+        token_count=total_tokens,
+        estimated_cost=estimated_cost,
+        started_at=started_at,
+        completed_at=completed_at,
+        error=error,
+    )
+
     async with async_session() as session:
+        # Persist structured output on the run record
+        run_record = await session.get(Run, uuid.UUID(run_id))
+        if run_record:
+            run_record.output_data = output_payload
+            await session.flush()
+
         session.add(
             Message(
                 run_id=uuid.UUID(run_id),
                 sender_agent="executor",
                 receiver_agent="user",
-                content=str({k: str(v)[:500] for k, v in final_output.items()})[:8000] if not error else error,
+                content=output_payload.get("summary", "")[:8000] if not error else error,
                 message_type=MessageType.agent_output,
             )
         )
         await session.commit()
+
+    # Fire webhook if configured — universal delivery to any URL
+    if webhook_url and not error:
+        await fire_webhook(webhook_url, output_payload)
+        await audit("run.webhook_fired", "run", run_id, detail={"webhook_url": webhook_url[:100]})
 
     logger.info(
         "Workflow %s run %s completed: status=%s tokens=%d",
@@ -158,9 +191,9 @@ async def execute_deployed_workflow(
         "run_id": run_id,
         "workflow_id": workflow_id,
         "status": final_status.value,
-        "final_output": final_output,
+        "output": output_payload,
         "token_count": total_tokens,
-        "estimated_cost_usd": estimate_cost(total_tokens),
+        "estimated_cost_usd": estimated_cost,
         "error": error,
     }
 

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from genesis.models.base import Base
@@ -55,6 +55,7 @@ class Run(Base):
     token_count_total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     estimated_cost_usd: Mapped[float] = mapped_column(Numeric(10, 6), nullable=False, default=0.0)
     repair_attempted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    output_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     workflow: Mapped["Workflow"] = relationship("Workflow", back_populates="runs")
     messages: Mapped[list["Message"]] = relationship(
