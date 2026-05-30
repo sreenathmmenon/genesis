@@ -147,8 +147,8 @@ function CanvasPageInner() {
       const active = (wfs as Workflow[])
         .filter(w => w.status === 'active' || w.status === 'paused')
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      if (active.length > 0) {
-        const wf = active[0]
+      const wf = active[0]
+      if (wf) {
         setAutoLoadedId(wf.id)
         loadWorkflow(wf.id)
         router.replace(`/canvas?workflow_id=${wf.id}`)

@@ -20,6 +20,16 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
+    href: '/inbox',
+    label: 'Inbox',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1.5" y="3.5" width="12" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+        <path d="M1.5 6L7.5 9L13.5 6" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" fill="none"/>
+      </svg>
+    ),
+  },
+  {
     href: '/workflows',
     label: 'My Agents',
     icon: (
