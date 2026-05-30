@@ -24,11 +24,11 @@ const LAYER_CSS_VAR: Record<AgentLayer, string> = {
 }
 
 const LAYER_GLOW: Record<AgentLayer, string> = {
-  meta:      'rgba(173, 255, 47, 0.2)',
-  build:     'rgba(249, 115, 22, 0.2)',
-  validate:  'rgba(56, 189, 248, 0.2)',
-  ops:       'rgba(167, 139, 250, 0.2)',
-  generated: 'rgba(173, 255, 47, 0.2)',
+  meta:      'rgba(124, 58, 237, 0.12)',
+  build:     'rgba(234, 88, 12, 0.12)',
+  validate:  'rgba(8, 145, 178, 0.12)',
+  ops:       'rgba(124, 58, 237, 0.12)',
+  generated: 'rgba(22, 163, 74, 0.12)',
 }
 
 const LAYER_BADGE: Record<AgentLayer, 'meta' | 'build' | 'validate' | 'ops' | 'accent'> = {
@@ -68,7 +68,7 @@ function AgentNodeInner({ data, selected }: NodeProps) {
       className="group"
       onMouseEnter={(e) => {
         const el = e.currentTarget as HTMLDivElement
-        el.style.boxShadow = `0 0 0 1px ${accentVar.replace(')', ', 0.3)')}, 0 4px 16px ${glowColor}`
+        el.style.boxShadow = `0 0 0 1.5px ${glowColor.replace('0.12', '0.5')}, 0 4px 16px ${glowColor}`
       }}
       onMouseLeave={(e) => {
         const el = e.currentTarget as HTMLDivElement
