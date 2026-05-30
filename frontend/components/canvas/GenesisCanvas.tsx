@@ -26,7 +26,7 @@ const nodeTypes: NodeTypes = {
 }
 
 const EDGE_STYLE = {
-  stroke: '#adff2f',
+  stroke: '#16A34A',
   strokeWidth: 1.5,
 }
 
@@ -114,25 +114,25 @@ export function GenesisCanvas() {
           50% { opacity: 0.35; }
         }
         .react-flow__controls {
-          background: #111111;
-          border: 1px solid #222222;
-          border-radius: 5px;
-          box-shadow: none;
+          background: #FFFFFF;
+          border: 1px solid #E5E7EB;
+          border-radius: 6px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.06);
         }
         .react-flow__controls-button {
-          background: #111111;
-          border-bottom: 1px solid #222222;
-          color: #6e6e6e;
-          fill: #6e6e6e;
+          background: #FFFFFF;
+          border-bottom: 1px solid #F3F4F6;
+          color: #6B7280;
+          fill: #6B7280;
         }
         .react-flow__controls-button:hover {
-          background: #1c1c1c;
-          fill: #ededed;
+          background: #F9FAFB;
+          fill: #111827;
         }
         .react-flow__minimap {
-          background: #111111;
-          border: 1px solid #222222;
-          border-radius: 5px;
+          background: #FFFFFF;
+          border: 1px solid #E5E7EB;
+          border-radius: 6px;
         }
       `}</style>
 
@@ -149,18 +149,18 @@ export function GenesisCanvas() {
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.2}
         maxZoom={2}
-        style={{ background: '#0a0a0a' }}
+        style={{ background: '#F7F8FA' }}
         deleteKeyCode={null}
       >
         <Background
           variant={BackgroundVariant.Dots}
           gap={20}
           size={1}
-          color="#1a1a1a"
+          color="#D1D5DB"
         />
         <MiniMap
-          nodeColor="#222222"
-          maskColor="rgba(10,10,10,0.8)"
+          nodeColor="#E5E7EB"
+          maskColor="rgba(247,248,250,0.8)"
           style={{ bottom: 56 }}
         />
         <Controls showInteractive={false} />
@@ -175,23 +175,26 @@ export function GenesisCanvas() {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 12,
+            gap: 16,
             pointerEvents: 'none',
           }}
         >
-          <div style={{ fontSize: 32, opacity: 0.15 }}>⬡</div>
-          <p
-            style={{
-              fontSize: 13,
-              color: '#6e6e6e',
-              fontStyle: 'italic',
-              textAlign: 'center',
-              maxWidth: 280,
-              lineHeight: 1.6,
-            }}
-          >
-            Send an intent to your Telegram bot to start building
-          </p>
+          <div style={{
+            width: 48, height: 48,
+            background: '#F0FDF4',
+            border: '1px solid #BBF7D0',
+            borderRadius: 12,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 22, opacity: 0.7,
+          }}>⬡</div>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: 15, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+              Canvas is empty
+            </p>
+            <p style={{ fontSize: 13, color: '#9CA3AF', maxWidth: 240, lineHeight: 1.6 }}>
+              Describe your agent workflow in the panel on the left to get started
+            </p>
+          </div>
         </div>
       )}
     </div>
