@@ -93,6 +93,21 @@ export const api = {
   getToolNames: () =>
     fetch(`${API_BASE}/api/v1/tools/names`).then(json),
 
+  // ── Audit log ──────────────────────────────────────────────────────────────
+  getAuditLogs: (params?: { event_type?: string; entity_type?: string; entity_id?: string; limit?: number; offset?: number }) => {
+    const qs = new URLSearchParams()
+    if (params?.event_type) qs.set('event_type', params.event_type)
+    if (params?.entity_type) qs.set('entity_type', params.entity_type)
+    if (params?.entity_id) qs.set('entity_id', params.entity_id)
+    if (params?.limit) qs.set('limit', String(params.limit))
+    if (params?.offset) qs.set('offset', String(params.offset))
+    const q = qs.toString()
+    return fetch(`${API_BASE}/api/v1/audit${q ? `?${q}` : ''}`).then(json)
+  },
+
+  getAuditEventTypes: () =>
+    fetch(`${API_BASE}/api/v1/audit/event-types`).then(json),
+
   // ── Health ─────────────────────────────────────────────────────────────────
   health: () =>
     fetch(`${API_BASE}/api/v1/health`).then(json),

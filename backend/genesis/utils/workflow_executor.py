@@ -10,6 +10,7 @@ from genesis.agents.state import WorkflowState
 from genesis.database import async_session
 from genesis.models.run import Message, MessageType, Run, RunStatus
 from genesis.models.workflow import Workflow
+from genesis.utils.audit import audit
 from genesis.utils.logger import get_logger
 from genesis.utils.redis_client import RUN_EVENTS, redis_client
 
@@ -56,6 +57,7 @@ async def execute_deployed_workflow(
             "timestamp": _now_iso(),
         },
     )
+    await audit("run.started", "run", run_id, detail={"workflow_id": workflow_id})
 
     total_tokens = 0
     error: str | None = None
@@ -95,6 +97,7 @@ async def execute_deployed_workflow(
                 "timestamp": _now_iso(),
             },
         )
+        await audit("run.completed", "run", run_id, detail={"workflow_id": workflow_id, "token_count": total_tokens})
 
     except Exception as exc:
         logger.exception("Workflow execution failed: workflow_id=%s run_id=%s", workflow_id, run_id)
@@ -110,6 +113,7 @@ async def execute_deployed_workflow(
                 "timestamp": _now_iso(),
             },
         )
+        await audit("run.failed", "run", run_id, detail={"workflow_id": workflow_id, "error": error})
 
         # ── Auto-repair on failure ────────────────────────────────────────────
         if error and not (input_data or {}).get("_repair_run"):
@@ -262,6 +266,7 @@ async def _attempt_repair(
             "timestamp": _now_iso(),
         },
     )
+    await audit("workflow.auto_repaired", "workflow", workflow_id, workflow_name, {"repair_reason": repair_reason, "failed_run_id": failed_run_id})
 
     # Retry the workflow with the repaired graph
     logger.info("Retrying workflow %s after repair", workflow_id)

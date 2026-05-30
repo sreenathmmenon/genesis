@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from genesis.database import get_db
 from genesis.models import Agent
 from genesis.models.schemas import AgentCreate, AgentRead, AgentUpdate
+from genesis.utils.audit import audit
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -79,6 +80,8 @@ async def patch_agent(
     await db.flush()
     await db.refresh(agent)
     logger.info("Agent patched: %s", agent_id)
+    changed = list(body.model_dump(exclude_unset=True).keys())
+    await audit("agent.config_changed", "agent", str(agent_id), agent.name, {"fields_changed": changed, "workflow_id": str(agent.workflow_id) if agent.workflow_id else None})
     return agent
 
 

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from genesis.database import get_db
 from genesis.models import Agent, Workflow
 from genesis.models.workflow import WorkflowStatus
+from genesis.utils.audit import audit
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/templates", tags=["templates"])
@@ -431,6 +432,7 @@ async def deploy_template(
             logger.error("Failed to schedule template workflow %s: %s", wf.id, exc)
 
     logger.info("Template '%s' deployed as workflow %s (schedule=%s)", template_name, wf.id, schedule_expr)
+    await audit("template.deployed", "workflow", str(wf.id), wf.name, {"template_name": template_name, "schedule_expr": schedule_expr})
     return {
         "workflow_id": str(wf.id),
         "canvas_json": canvas_json,

@@ -91,6 +91,16 @@ export interface Template {
   category: string
 }
 
+export interface AuditEntry {
+  id: string
+  event_type: string
+  entity_type: string
+  entity_id: string | null
+  entity_name: string | null
+  detail: Record<string, unknown> | null
+  timestamp: string
+}
+
 export interface MonitorLog {
   id: string
   timestamp: string

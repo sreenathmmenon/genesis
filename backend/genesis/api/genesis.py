@@ -11,6 +11,7 @@ from genesis.database import get_db
 from genesis.models.genesis_build import BuildStatus, GenesisBuild
 from genesis.models.schemas import GenesisBuildCreate, GenesisBuildRead, IntentRequest
 from genesis.models.workflow import Workflow, WorkflowStatus
+from genesis.utils.audit import audit
 from genesis.utils.logger import get_logger
 from genesis.utils.redis_client import BUILD_PROGRESS, redis_client
 
@@ -92,6 +93,7 @@ async def start_build(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
     build_id = await start_build_from_intent(body.intent, db)
+    await audit("build.started", "build", build_id, detail={"intent": body.intent[:200]})
     return {"build_id": build_id, "status": "decomposing"}
 
 
@@ -173,6 +175,8 @@ async def deploy_build(
             "workflow_id": workflow_id_str,
         },
     )
+    await audit("build.deployed", "build", str(build_id), detail={"workflow_id": workflow_id_str, "workflow_name": workflow.name})
+    await audit("workflow.deployed", "workflow", workflow_id_str, workflow.name, {"build_id": str(build_id), "schedule_expr": schedule_expr})
 
     return {
         "workflow_id": workflow_id_str,

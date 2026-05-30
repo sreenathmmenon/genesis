@@ -12,6 +12,7 @@ from genesis.database import get_db
 from genesis.models import Workflow
 from genesis.models.workflow import WorkflowStatus
 from genesis.models.schemas import WorkflowCreate, WorkflowRead, WorkflowUpdate
+from genesis.utils.audit import audit
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/workflows", tags=["workflows"])
@@ -37,6 +38,7 @@ async def create_workflow(
     await db.flush()
     await db.refresh(wf)
     logger.info("Workflow created: %s (%s)", wf.name, wf.id)
+    await audit("workflow.created", "workflow", str(wf.id), wf.name)
     return wf
 
 
@@ -92,6 +94,7 @@ async def delete_workflow(
     wf = await db.get(Workflow, workflow_id)
     if not wf:
         raise HTTPException(status_code=404, detail="Workflow not found")
+    await audit("workflow.deleted", "workflow", str(workflow_id), wf.name)
     await db.delete(wf)
     await db.flush()
     logger.info("Workflow deleted: %s", workflow_id)
@@ -108,6 +111,7 @@ async def deploy_workflow(
     await db.flush()
     await db.refresh(wf)
     logger.info("Workflow deployed: %s", workflow_id)
+    await audit("workflow.deployed", "workflow", str(workflow_id), wf.name)
     return wf
 
 
@@ -122,6 +126,7 @@ async def pause_workflow(
     await db.flush()
     await db.refresh(wf)
     logger.info("Workflow paused: %s", workflow_id)
+    await audit("workflow.paused", "workflow", str(workflow_id), wf.name)
     return wf
 
 
@@ -139,6 +144,7 @@ async def run_workflow(
     run_id = str(uuid.uuid4())
     asyncio.create_task(execute_deployed_workflow(str(workflow_id), run_id=run_id))
     logger.info("Triggered run for workflow %s run_id=%s", workflow_id, run_id)
+    await audit("workflow.run_triggered", "workflow", str(workflow_id), wf.name, {"run_id": run_id})
     return {"workflow_id": str(workflow_id), "run_id": run_id, "status": "running"}
 
 
@@ -160,6 +166,7 @@ async def set_workflow_schedule(
     await db.flush()
     await db.refresh(wf)
     logger.info("Schedule set for workflow %s: %s", workflow_id, body.cron_expr)
+    await audit("workflow.schedule_set", "workflow", str(workflow_id), wf.name, {"cron_expr": body.cron_expr})
     return wf
 
 
@@ -177,6 +184,7 @@ async def remove_workflow_schedule(
     await db.flush()
     await db.refresh(wf)
     logger.info("Schedule removed for workflow %s", workflow_id)
+    await audit("workflow.schedule_removed", "workflow", str(workflow_id), wf.name)
     return wf
 
 

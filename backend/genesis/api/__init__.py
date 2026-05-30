@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from genesis.api.agents import router as agents_router
+from genesis.api.audit import router as audit_router
 from genesis.api.genesis import router as genesis_router
 from genesis.api.health import router as health_router
 from genesis.api.runs import router as runs_router
@@ -22,3 +23,4 @@ router.include_router(scheduler_router)
 router.include_router(websocket_router)
 router.include_router(genesis_router)
 router.include_router(telegram_router)
+router.include_router(audit_router)
