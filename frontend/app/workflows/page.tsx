@@ -105,7 +105,6 @@ function AgentCard({ wf, nextRun, runStatus, onRun }: {
             }}>
               <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#2563EB', flexShrink: 0 }} />
               {formatCron(wf.schedule_expr)}
-              {nextRun && <span style={{ opacity: 0.7 }}>· {formatNextRun(nextRun)}</span>}
             </span>
           ) : (
             <span style={{
