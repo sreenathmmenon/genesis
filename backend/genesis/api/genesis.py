@@ -47,12 +47,13 @@ async def start_build_from_intent(intent: str, db: AsyncSession | None = None) -
 
 
 async def _run_build_pipeline(build_id: str, intent: str) -> None:
-    from genesis.database import async_session
-    from genesis.agents.graph_compiler import run_genesis_build
-
     logger.info("Starting genesis build pipeline: build_id=%s", build_id)
     try:
+        from genesis.database import async_session
+        from genesis.agents.graph_compiler import run_genesis_build
+        logger.info("graph_compiler imported OK, running pipeline build_id=%s", build_id)
         result = await run_genesis_build(intent=intent, build_id=build_id)
+        logger.info("Pipeline complete build_id=%s status=%s", build_id, result.get("status"))
 
         async with async_session() as session:
             build = await session.get(GenesisBuild, uuid.UUID(build_id))
