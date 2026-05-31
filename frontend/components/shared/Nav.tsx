@@ -146,7 +146,7 @@ export function Nav() {
       </div>
 
       {/* Nav items */}
-      <div style={{ flex: 1, paddingTop: 12, paddingBottom: 12 }}>
+      <div style={{ flex: 1, padding: '12px 0' }}>
         {NAV_ITEMS.map((item) => (
           <Link
             key={item.href}
