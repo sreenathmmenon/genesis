@@ -18,7 +18,7 @@ async def web_search(query: str, max_results: int = 5) -> str:
     """Search the web using DuckDuckGo and return top results with titles, URLs and excerpts."""
     import asyncio
     try:
-        from ddgs import DDGS
+        from duckduckgo_search import DDGS
         loop = asyncio.get_event_loop()
         results = await loop.run_in_executor(
             None, lambda: list(DDGS().text(query, max_results=max_results))
