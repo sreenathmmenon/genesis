@@ -132,7 +132,9 @@ async def pause_workflow(
 
 @router.post("/{workflow_id}/run")
 async def run_workflow(
-    workflow_id: uuid.UUID, db: AsyncSession = Depends(get_db)
+    workflow_id: uuid.UUID,
+    body: dict = None,
+    db: AsyncSession = Depends(get_db),
 ) -> dict:
     wf = await db.get(Workflow, workflow_id)
     if not wf:
@@ -140,10 +142,16 @@ async def run_workflow(
     if wf.status not in (WorkflowStatus.active, WorkflowStatus.paused):
         raise HTTPException(status_code=409, detail=f"Workflow status is '{wf.status.value}' — cannot run")
 
+    # Build initial input: caller-supplied values merged on top of workflow intent
+    caller_input: dict = (body or {}).get("input", {}) if body else {}
+    initial_input: dict = {"intent": wf.intent or "", **caller_input}
+
     from genesis.utils.workflow_executor import execute_deployed_workflow
     run_id = str(uuid.uuid4())
-    asyncio.create_task(execute_deployed_workflow(str(workflow_id), run_id=run_id))
-    logger.info("Triggered run for workflow %s run_id=%s", workflow_id, run_id)
+    asyncio.create_task(
+        execute_deployed_workflow(str(workflow_id), input_data=initial_input, run_id=run_id)
+    )
+    logger.info("Triggered run for workflow %s run_id=%s input_keys=%s", workflow_id, run_id, list(initial_input.keys()))
     await audit("workflow.run_triggered", "workflow", str(workflow_id), wf.name, {"run_id": run_id})
     return {"workflow_id": str(workflow_id), "run_id": run_id, "status": "running"}
 

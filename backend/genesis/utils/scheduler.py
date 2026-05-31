@@ -48,11 +48,21 @@ async def schedule_workflow(
     input_data: dict[str, Any] | None = None,
 ) -> str:
     """Add a cron-scheduled job for an operational workflow. Returns job_id."""
+    from genesis.database import async_session
+    from genesis.models.workflow import Workflow
     from genesis.utils.workflow_executor import execute_deployed_workflow
+    import uuid as _uuid
 
     parts = cron_expr.strip().split()
     if len(parts) != 5:
         raise ValueError(f"Invalid cron expression: '{cron_expr}' (expected 5 fields)")
+
+    # Load the workflow intent so scheduled runs have proper initial context
+    async with async_session() as session:
+        wf = await session.get(Workflow, _uuid.UUID(workflow_id))
+        intent = wf.intent if wf else ""
+
+    merged_input = {"intent": intent, **(input_data or {})}
 
     minute, hour, day, month, day_of_week = parts
     trigger = CronTrigger(
@@ -71,7 +81,7 @@ async def schedule_workflow(
         execute_deployed_workflow,
         trigger=trigger,
         id=job_id,
-        kwargs={"workflow_id": workflow_id, "input_data": input_data or {}},
+        kwargs={"workflow_id": workflow_id, "input_data": merged_input},
         replace_existing=True,
         misfire_grace_time=300,
     )
