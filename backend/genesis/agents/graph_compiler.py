@@ -4,7 +4,7 @@ import json
 import uuid
 from typing import Any
 
-from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -366,35 +366,32 @@ async def run_genesis_build(
     db_url: str | None = None,
 ) -> dict[str, Any]:
     """Entry-point: run the full Genesis pipeline for a given intent."""
-    conn_string = (db_url or settings.database_url).replace("+asyncpg", "")
-
     try:
-        async with AsyncPostgresSaver.from_conn_string(conn_string) as saver:
-            await saver.setup()
-            compiled = await compile_genesis_graph(checkpointer=saver)
+        saver = MemorySaver()
+        compiled = await compile_genesis_graph(checkpointer=saver)
 
-            thread_id = str(uuid.uuid4())
-            initial: GenesisState = {
-                "intent": intent,
-                "build_id": build_id,
-                "status": "started",
-                "architect_output": None,
-                "decomposer_output": None,
-                "builder_output": None,
-                "critic_feedback": None,
-                "critic_approved": False,
-                "iteration_count": 0,
-                "validator_report": None,
-                "workflow_id": None,
-                "error": None,
-                "messages": [HumanMessage(content=intent)],
-            }
+        thread_id = str(uuid.uuid4())
+        initial: GenesisState = {
+            "intent": intent,
+            "build_id": build_id,
+            "status": "started",
+            "architect_output": None,
+            "decomposer_output": None,
+            "builder_output": None,
+            "critic_feedback": None,
+            "critic_approved": False,
+            "iteration_count": 0,
+            "validator_report": None,
+            "workflow_id": None,
+            "error": None,
+            "messages": [HumanMessage(content=intent)],
+        }
 
-            final = await compiled.ainvoke(
-                initial,
-                config={"configurable": {"thread_id": thread_id}},
-            )
-            return dict(final)
+        final = await compiled.ainvoke(
+            initial,
+            config={"configurable": {"thread_id": thread_id}},
+        )
+        return dict(final)
     except Exception as exc:
         logger.exception("Genesis build failed for build_id=%s: %s", build_id, exc)
         return {"error": str(exc), "build_id": build_id, "status": "failed"}
