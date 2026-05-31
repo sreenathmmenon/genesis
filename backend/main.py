@@ -13,11 +13,45 @@ from genesis.utils.redis_client import redis_client
 logger = get_logger("genesis")
 
 
+async def _cleanup_orphaned_runs() -> None:
+    """On startup, mark any runs that are still 'running' as failed.
+    These are orphaned runs from a previous process that was killed without cleanup."""
+    from datetime import datetime, timezone, timedelta
+    from genesis.database import async_session
+    from genesis.models.run import Run, RunStatus
+    from sqlalchemy import select
+
+    try:
+        async with async_session() as session:
+            # Mark runs older than 10 minutes still in 'running' state as failed
+            cutoff = datetime.now(tz=timezone.utc) - timedelta(minutes=10)
+            q = select(Run).where(
+                Run.status == RunStatus.running,
+                Run.started_at < cutoff,
+            )
+            result = await session.execute(q)
+            orphans = list(result.scalars().all())
+            if orphans:
+                logger.info("Cleaning up %d orphaned running runs", len(orphans))
+                now = datetime.now(tz=timezone.utc)
+                for run in orphans:
+                    run.status = RunStatus.failed
+                    run.error = "Run was orphaned — process was restarted before it completed."
+                    run.completed_at = now
+                await session.commit()
+                logger.info("Orphaned runs cleaned up: %s", [str(r.id) for r in orphans])
+    except Exception as exc:
+        logger.error("Orphaned run cleanup failed: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Genesis starting up (env=%s)", settings.environment)
     await init_db()
     await redis_client.connect()
+
+    # Clean up orphaned runs from previous process
+    await _cleanup_orphaned_runs()
 
     # Start Telegram bot (polling mode — no-op if token not set)
     from genesis.channels.telegram import telegram_bridge
