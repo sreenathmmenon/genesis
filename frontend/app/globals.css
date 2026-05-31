@@ -452,13 +452,12 @@
   }
 
   .page-content {
-    margin-left: 220px;
+    padding-left: 220px;
     flex: 1;
     overflow-y: auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    /* Cooler page background for all content areas */
     background: #F6F8FC;
   }
 

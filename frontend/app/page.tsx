@@ -157,28 +157,28 @@ export default function HomePage() {
       value: stats.activeNow,
       sub: `of ${stats.totalAgents} deployed`,
       accent: true,
-      icon: '◉',
+      icon: '→',
     },
     {
       label: 'Runs Today',
       value: stats.runsToday,
       sub: 'executions',
       accent: false,
-      icon: '▶',
+      icon: '↻',
     },
     {
       label: 'Total Agents',
       value: stats.totalAgents,
       sub: 'workflows built',
       accent: false,
-      icon: '⬡',
+      icon: '≡',
     },
     {
       label: 'Total Cost',
       value: `$${stats.totalCost.toFixed(3)}`,
       sub: 'all time',
       accent: false,
-      icon: '◈',
+      icon: '$',
     },
   ]
 
