@@ -141,22 +141,22 @@ class TelegramBridge(ChannelBridge):
 
     async def _cmd_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text(
-            "👋 *Genesis AI Orchestration Platform*\n\n"
-            "Describe what you want to automate and I'll build a live multi-agent workflow.\n\n"
-            "*Example:*\n"
-            "_Search Hacker News for top AI stories daily and send me a digest_\n\n"
-            "Commands:\n"
-            "/status — system status\n"
-            "/cancel — cancel pending intent",
+            "*Genesis — AI Agent Orchestration*\n\n"
+            "Describe an outcome you want automated. Genesis will design, build, "
+            "and deploy a multi-agent workflow — no code required.\n\n"
+            "*Try:*\n"
+            "• Monitor Hacker News for AI stories and send a daily digest\n"
+            "• Research competitors weekly and brief me on pricing changes\n"
+            "• Triage support tickets and draft replies automatically\n\n"
+            "/status — platform status  |  /cancel — discard current request",
             parse_mode="Markdown",
         )
 
     async def _cmd_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         redis_ok = await redis_client.ping()
         await update.message.reply_text(
-            f"🔮 *Genesis Status*\n\n"
-            f"• Redis: {'✅' if redis_ok else '❌'}\n"
-            f"• Bot: ✅ running",
+            f"*Genesis Platform Status*\n\n"
+            f"Database: ✅  Redis: {'✅' if redis_ok else '❌'}  Runtime: ✅",
             parse_mode="Markdown",
         )
 
@@ -164,7 +164,7 @@ class TelegramBridge(ChannelBridge):
         chat_id = update.effective_chat.id
         await self._clear_pending_intent(chat_id)
         await update.message.reply_text(
-            "Cancelled. Send me a new description whenever you're ready."
+            "Request discarded. Send a new description whenever you're ready."
         )
 
     # ── Main message handler — state driven by Redis ───────────────────────────
@@ -184,9 +184,10 @@ class TelegramBridge(ChannelBridge):
             if normalized == "yes":
                 await self._clear_pending_intent(chat_id)
                 await update.message.reply_text(
-                    "🚀 *Building your workflow now…*\n\n"
-                    "This takes about 60 seconds. I'll send you an approval request when it's ready.",
-                    parse_mode="Markdown",
+                    "Building your workflow now. "
+                    "Genesis will design, validate, and prepare it for deployment — "
+                    "this takes about 60 seconds.\n\n"
+                    "I'll send you a review request when it's ready.",
                 )
                 try:
                     from genesis.api.genesis import start_build_from_intent
@@ -194,21 +195,25 @@ class TelegramBridge(ChannelBridge):
                     logger.info("Telegram initiated build build_id=%s intent=%s", build_id, pending[:60])
                 except Exception as exc:
                     logger.error("Failed to start build from Telegram: %s", exc)
-                    await update.message.reply_text("❌ Failed to start build. Please try again.")
+                    await update.message.reply_text(
+                        "Something went wrong starting the build. Please try again or visit the dashboard."
+                    )
                 return
 
             if normalized == "no":
                 await self._clear_pending_intent(chat_id)
                 await update.message.reply_text(
-                    "No problem! Send me a new description whenever you're ready."
+                    "Request discarded. Send a new description whenever you're ready."
                 )
                 return
 
             # Anything else = refined intent
             await self._set_pending_intent(chat_id, text)
             await update.message.reply_text(
-                f"✏️ *Updated plan:*\n\n_{text}_\n\n"
-                "Reply *yes* to confirm, *no* to cancel, or keep refining.",
+                "*Updated:*\n\n"
+                f"{text}\n\n"
+                "Reply *yes* to confirm and start building, *no* to discard, "
+                "or continue refining.",
                 parse_mode="Markdown",
             )
             return
@@ -216,18 +221,17 @@ class TelegramBridge(ChannelBridge):
         # ── State: no pending intent — treat as new intent ────────────────────
         if len(text) < 5:
             await update.message.reply_text(
-                "👋 Describe what you want to automate and I'll build it.\n\n"
-                "*Example:* _Search HN for AI stories daily and send me a digest_\n\n"
-                "Type /start for help.",
-                parse_mode="Markdown",
+                "Describe the workflow you want to automate and Genesis will build it.\n\n"
+                "Type /start for examples and commands.",
             )
             return
 
         await self._set_pending_intent(chat_id, text)
         await update.message.reply_text(
-            f"🔮 *Got it! Here's what I'll build:*\n\n_{text}_\n\n"
-            "Reply *yes* to start building, *no* to cancel, "
-            "or type a refined description to update it.",
+            "*Here's what Genesis will build:*\n\n"
+            f"{text}\n\n"
+            "Reply *yes* to confirm and start building, *no* to discard, "
+            "or send a revised description.",
             parse_mode="Markdown",
         )
 
@@ -307,10 +311,14 @@ class TelegramBridge(ChannelBridge):
                 {"build_id": build_id, "action": "deployed", "workflow_id": workflow_id},
             )
 
-            schedule_note = f"\n📅 Schedule: `{schedule_expr}`" if schedule_expr else ""
+            wf_name = builder_output.get("workflow_name", "Workflow")
+            schedule_note = (
+                f"\n\nSchedule: runs automatically ({schedule_expr})" if schedule_expr
+                else "\n\nThe workflow is ready to run on demand from your dashboard."
+            )
             await query.edit_message_text(
-                f"✅ *Deployed!* Workflow `{workflow_id[:8]}` is live.{schedule_note}\n\n"
-                f"View it at {settings.frontend_url} → My Agents",
+                f"*{wf_name}* is deployed and live.{schedule_note}\n\n"
+                f"Manage it at {settings.frontend_url}",
                 parse_mode="Markdown",
             )
             logger.info("Telegram deploy succeeded: build_id=%s workflow_id=%s", build_id, workflow_id)
@@ -325,17 +333,14 @@ class TelegramBridge(ChannelBridge):
                 {"build_id": build_id, "action": "cancel", "source": "telegram"},
             )
             await query.edit_message_text(
-                f"❌ Build `{build_id[:8]}` cancelled.",
-                parse_mode="Markdown",
+                "Build cancelled. Send a new request whenever you're ready."
             )
         except Exception as exc:
             logger.error("Cancel trigger failed: %s", exc)
 
     async def _send_details(self, build_id: str, query: Any) -> None:
         await query.edit_message_text(
-            f"🔍 *Build ID:* `{build_id}`\n\n"
-            f"View full details on the Genesis dashboard.",
-            parse_mode="Markdown",
+            f"View the full workflow design and agent breakdown at:\n{settings.frontend_url}",
         )
 
 
