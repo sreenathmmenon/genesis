@@ -1,6 +1,25 @@
 # Genesis — Autonomous Multi-Agent Platform
 
-> **Live demo:** [https://genesis-ai.up.railway.app](https://genesis-ai.up.railway.app)
+<div align="center">
+
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-genesis--ai.up.railway.app-brightgreen?style=for-the-badge)](https://genesis-ai.up.railway.app)
+[![Python](https://img.shields.io/badge/Python-3.12-blue?style=for-the-badge&logo=python)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
+[![LangGraph](https://img.shields.io/badge/LangGraph-1.0-orange?style=for-the-badge)](https://langchain-ai.github.io/langgraph)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
+[![Claude](https://img.shields.io/badge/Claude-Haiku%20%7C%20Sonnet%20%7C%20Opus-purple?style=for-the-badge)](https://anthropic.com)
+
+**Describe what you want. Get a live multi-agent system in 60 seconds.**
+
+*No code. No config. No workflow diagrams. Just your intent.*
+
+</div>
+
+---
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+---
 
 You have an idea: *"Every Monday, tell me which of my top three competitors changed their pricing, what changed, and what it means for me."*
 
@@ -8,41 +27,45 @@ Before Genesis, this takes a day. You open five browser tabs. You write a Python
 
 With Genesis, you type the intent. Sixty seconds later, a 5-node LangGraph pipeline is running. Each agent observes results, decides what to do next, calls real tools, and hands state to the next agent. A structured brief appears in your dashboard. You didn't write a line of code. You didn't think through the steps. You just described the outcome you wanted.
 
-**That is the difference: Genesis doesn't automate tasks. It replaces the reasoning loop.**
+**Genesis doesn't automate tasks. It replaces the reasoning loop.**
 
 ---
 
-## Screenshots
+## See It Running
 
-### Command Center — Your AI Workforce at a Glance
+<table>
+<tr>
+<td width="50%">
 
-![Dashboard](docs/screenshots/dashboard.png)
-
-2 active agents deployed, running autonomously. Total platform cost: **$0.033**.
-
----
-
-### My Agents — Deployed Workflows
+**My Agents — 2 live pipelines deployed**
 
 ![My Agents](docs/screenshots/my-agents.png)
 
-Two multi-agent pipelines live and running — built from a single sentence each. Run, pause, inspect, or view the full canvas for any agent.
+Built from a single sentence each. Run, pause, or inspect any agent.
 
----
+</td>
+<td width="50%">
 
-### Telegram Bot — Send Intent, Get Results
+**Telegram Bot — send intent, get results**
 
 ![Telegram Bot](docs/screenshots/telegram-bot.png)
 
-Send a workflow intent to the Genesis Telegram bot. It replies, builds the pipeline, deploys it, and delivers results — all in Telegram.
+Message the bot. It builds, deploys, and delivers — all in Telegram.
 
----
+</td>
+</tr>
+<tr>
+<td colspan="2">
 
-### Agent Output — AI News Digest Delivered to Telegram
+**Real agent output — AI News Digest delivered to Telegram**
 
 ![Telegram Output](docs/screenshots/telegram-output.png)
 
-A real agent output: the AI News Digest searched Hacker News, ranked stories by relevance (88, 82, 71), summarized each one, and delivered a structured brief. Zero human involvement after the initial intent.
+The agent searched Hacker News, ranked stories by relevance (88, 82, 71), summarized each one, and delivered a structured brief. Zero human involvement after the initial intent.
+
+</td>
+</tr>
+</table>
 
 ---
 
