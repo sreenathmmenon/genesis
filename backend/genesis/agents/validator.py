@@ -70,14 +70,12 @@ class ValidatorAgent(GenesisAgent):
         raw = await self._call_llm(system_prompt=_SYSTEM_PROMPT, user_prompt=user_prompt)
 
         try:
-            report = json.loads(raw)
-        except json.JSONDecodeError:
-            import re
-            m = re.search(r"\{.*\}", raw, re.DOTALL)
-            report = json.loads(m.group()) if m else {
+            report = self.parse_json_response(raw)
+        except ValueError:
+            report = {
                 "validation_passed": False,
                 "deployment_ready": False,
-                "blocking_issues": [raw],
+                "blocking_issues": [raw[:500]],
             }
 
         safety = report.get("safety_checks", {})

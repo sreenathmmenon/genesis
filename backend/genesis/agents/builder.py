@@ -182,11 +182,10 @@ class BuilderAgent(GenesisAgent):
         raw = await self._call_llm(system_prompt=_SYSTEM_PROMPT, user_prompt=user_prompt)
 
         try:
-            output = json.loads(raw)
-        except json.JSONDecodeError:
-            import re
-            m = re.search(r"\{.*\}", raw, re.DOTALL)
-            output = json.loads(m.group()) if m else {"raw": raw}
+            output = self.parse_json_response(raw)
+        except ValueError as exc:
+            self.logger.error("Builder JSON parse failed: %s\nRaw (first 800): %s", exc, raw[:800])
+            raise
 
         # Publish canvas update so the frontend reacts in real-time
         canvas = output.get("canvas_json") or _build_canvas_from_graph(

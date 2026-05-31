@@ -61,11 +61,9 @@ class CriticAgent(GenesisAgent):
         raw = await self._call_llm(system_prompt=_SYSTEM_PROMPT, user_prompt=user_prompt)
 
         try:
-            review = json.loads(raw)
-        except json.JSONDecodeError:
-            import re
-            m = re.search(r"\{.*\}", raw, re.DOTALL)
-            review = json.loads(m.group()) if m else {"approved": False, "feedback": [raw]}
+            review = self.parse_json_response(raw)
+        except ValueError:
+            review = {"approved": False, "feedback": [raw[:500]]}
 
         approved: bool = bool(review.get("approved", False))
         feedback: list = review.get("feedback", [])

@@ -57,11 +57,10 @@ class ArchitectAgent(GenesisAgent):
         )
 
         try:
-            output = json.loads(raw)
-        except json.JSONDecodeError:
-            import re
-            m = re.search(r"\{.*\}", raw, re.DOTALL)
-            output = json.loads(m.group()) if m else {"raw": raw}
+            output = self.parse_json_response(raw)
+        except ValueError as exc:
+            self.logger.error("Architect JSON parse failed: %s\nRaw (first 800): %s", exc, raw[:800])
+            raise
 
         await self._publish_message(build_id, json.dumps(output, indent=2), "decomposer")
         await self._publish_build_progress(

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -56,6 +58,24 @@ class GenesisAgent:
             getattr(response, "usage_metadata", {}).get("total_tokens", "?"),
         )
         return str(response.content)
+
+    @staticmethod
+    def parse_json_response(raw: str) -> dict[str, Any]:
+        """Parse LLM response into JSON, handling markdown code fences and trailing text."""
+        text = raw.strip()
+        # Strip ```json ... ``` or ``` ... ``` code fences
+        fence_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+        if fence_match:
+            text = fence_match.group(1)
+        else:
+            # Find the outermost JSON object
+            brace_match = re.search(r"\{.*\}", text, re.DOTALL)
+            if brace_match:
+                text = brace_match.group()
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Failed to parse LLM JSON response: {exc}\n---\n{text[:500]}") from exc
 
     def _check_guardrails(self, prompt: str) -> None:
         if len(prompt) > self.config.max_tokens * 4:
