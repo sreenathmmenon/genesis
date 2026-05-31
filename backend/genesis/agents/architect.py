@@ -21,7 +21,7 @@ Output ONLY valid JSON matching this schema — no markdown, no commentary:
       "name": "<agent_name>",
       "role": "<role description>",
       "layer": "meta | build | validate | ops",
-      "model": "claude-sonnet-4-6",
+      "model": "claude-haiku-4-5-20251001",
       "tools": ["web_search", "github_api", "http_request", "telegram_send", "scheduler", "file_reader"],
       "memory": "none | short_term | long_term",
       "triggers": ["cron:<expr>", "webhook", "manual"]
@@ -36,7 +36,7 @@ Output ONLY valid JSON matching this schema — no markdown, no commentary:
 Rules:
 - Use 2-5 agents. Only include agents that are strictly necessary.
 - Always include a "reporter" agent that sends results via telegram_send.
-- Choose the simplest model (claude-haiku-4-5-20251001) for lightweight tasks. Use claude-sonnet-4-6 for complex reasoning.
+- Use claude-haiku-4-5-20251001 for most tasks. Use claude-sonnet-4-6 only for complex multi-step reasoning nodes.
 - Assign long_term memory only when state must persist across multiple runs.
 """
 
