@@ -156,12 +156,20 @@ async def github_api(endpoint: str, method: str = "GET", body: dict | None = Non
 async def file_reader(path: str) -> str:
     """Read a local file and return its contents (max 50 KB).
     Supports text files: .txt, .md, .json, .yaml, .csv, .py, .js, .ts, etc."""
-    import aiofiles
-
     try:
-        async with aiofiles.open(path, mode="r", encoding="utf-8") as fh:
-            content = await fh.read(51_200)
-        return content
+        try:
+            import aiofiles
+            async with aiofiles.open(path, mode="r", encoding="utf-8") as fh:
+                content = await fh.read(51_200)
+            return content
+        except ImportError:
+            # aiofiles not available — fall back to sync read in executor
+            import asyncio
+            loop = asyncio.get_event_loop()
+            def _read():
+                with open(path, mode="r", encoding="utf-8") as fh:
+                    return fh.read(51_200)
+            return await loop.run_in_executor(None, _read)
     except Exception as exc:
         logger.warning("file_reader failed for %s: %s", path, exc)
         return json.dumps({"error": str(exc)})

@@ -184,7 +184,22 @@ async def compile_workflow_from_json(
                     context_parts.append(f"=== {short_key} ===\n{str(v)[:3000]}")
                 context = "Data from previous agents:\n\n" + "\n\n".join(context_parts)
             else:
-                context = json.dumps(state.get("input_data", {}))
+                # First node — derive a clear task description from input_data
+                input_data = state.get("input_data", {})
+                intent = input_data.get("intent", "")
+                if intent:
+                    # Strip any internal flags before presenting to the agent
+                    extra = {k: v for k, v in input_data.items() if k not in ("intent", "_repair_run")}
+                    context = f"Task: {intent}"
+                    if extra:
+                        context += "\n\nAdditional parameters:\n" + json.dumps(extra, indent=2)
+                elif input_data and not all(k.startswith("_") for k in input_data):
+                    context = "Input data:\n" + json.dumps(
+                        {k: v for k, v in input_data.items() if not k.startswith("_")},
+                        indent=2
+                    )
+                else:
+                    context = "No specific input provided. Use your tools to complete your assigned task."
             logger.info("Node [%s] starting — prior keys: %s", node_id, list(prior.keys()))
 
             if db_writer is not None:

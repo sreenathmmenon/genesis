@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from datetime import datetime, timezone
@@ -143,17 +144,27 @@ async def execute_deployed_workflow(
 
         compiled = await compile_workflow_from_json(graph_json, db_writer=_db_writer)
 
+        # Build a clear initial message so the first agent knows its task
+        _input = input_data or {}
+        intent = _input.get("intent", "")
+        if intent:
+            initial_msg = f"Task: {intent}"
+        elif _input and not _input.get("_repair_run"):
+            initial_msg = "Task: " + "; ".join(f"{k}={v}" for k, v in _input.items() if not k.startswith("_"))
+        else:
+            initial_msg = f"Task: {workflow_name}. Execute your assigned role now."
+
         initial: WorkflowState = {
             "workflow_id": workflow_id,
             "run_id": run_id,
-            "input_data": input_data or {},
+            "input_data": _input,
             "intermediate_results": {},
             "final_output": None,
             "error": None,
-            "messages": [HumanMessage(content=str(input_data or {}))],
+            "messages": [HumanMessage(content=initial_msg)],
         }
 
-        result = await compiled.ainvoke(initial)
+        result = await asyncio.wait_for(compiled.ainvoke(initial), timeout=300.0)
         final_output = result.get("intermediate_results", {})
         logger.info(
             "Workflow %s run %s — nodes executed: %s",
@@ -174,6 +185,21 @@ async def execute_deployed_workflow(
         )
         await audit("run.completed", "run", run_id, detail={"workflow_id": workflow_id, "token_count": total_tokens})
 
+    except asyncio.TimeoutError:
+        logger.error("Workflow execution timed out after 300s: workflow_id=%s run_id=%s", workflow_id, run_id)
+        error = "Workflow execution timed out after 5 minutes."
+        await redis_client.publish(
+            RUN_EVENTS,
+            {
+                "type": "run_event",
+                "event": "run_failed",
+                "workflow_id": workflow_id,
+                "run_id": run_id,
+                "error": error,
+                "timestamp": _now_iso(),
+            },
+        )
+        await audit("run.failed", "run", run_id, detail={"workflow_id": workflow_id, "error": error})
     except Exception as exc:
         logger.exception("Workflow execution failed: workflow_id=%s run_id=%s", workflow_id, run_id)
         error = str(exc)
