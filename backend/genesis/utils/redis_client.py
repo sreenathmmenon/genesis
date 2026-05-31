@@ -63,6 +63,24 @@ class RedisClient:
             await pubsub.unsubscribe(*channels)
             await pubsub.aclose()
 
+    async def get(self, key: str) -> str | None:
+        try:
+            return await self._r.get(key)
+        except Exception:
+            return None
+
+    async def set(self, key: str, value: str, ex: int | None = None) -> None:
+        try:
+            await self._r.set(key, value, ex=ex)
+        except Exception as exc:
+            logger.error("Redis SET %s failed: %s", key, exc)
+
+    async def delete(self, key: str) -> None:
+        try:
+            await self._r.delete(key)
+        except Exception as exc:
+            logger.error("Redis DEL %s failed: %s", key, exc)
+
     async def ping(self) -> bool:
         try:
             return await self._r.ping()

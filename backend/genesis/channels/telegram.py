@@ -78,23 +78,13 @@ class TelegramBridge(ChannelBridge):
     # ── Redis session helpers ──────────────────────────────────────────────────
 
     async def _get_pending_intent(self, chat_id: int) -> str | None:
-        try:
-            return await redis_client._r.get(_intent_key(chat_id))
-        except Exception:
-            return None
+        return await redis_client.get(_intent_key(chat_id))
 
     async def _set_pending_intent(self, chat_id: int, intent: str) -> None:
-        try:
-            # Expire after 30 minutes of inactivity
-            await redis_client._r.set(_intent_key(chat_id), intent, ex=1800)
-        except Exception as exc:
-            logger.error("Failed to store pending intent in Redis: %s", exc)
+        await redis_client.set(_intent_key(chat_id), intent, ex=1800)
 
     async def _clear_pending_intent(self, chat_id: int) -> None:
-        try:
-            await redis_client._r.delete(_intent_key(chat_id))
-        except Exception:
-            pass
+        await redis_client.delete(_intent_key(chat_id))
 
     # ── Send helpers ───────────────────────────────────────────────────────────
 
