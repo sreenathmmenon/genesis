@@ -19,7 +19,7 @@ class AgentConfig:
     role: str
     model_name: str = "claude-sonnet-4-6"
     temperature: float = 0.1
-    max_tokens: int = 8096
+    max_tokens: int = 16384
     max_iterations: int = 10
     tools: list[str] = field(default_factory=list)
 
@@ -35,7 +35,7 @@ class GenesisAgent:
     @property
     def llm(self) -> BaseChatModel:
         if self._llm is None:
-            self._llm = get_llm(self.config.model_name, self.config.temperature)
+            self._llm = get_llm(self.config.model_name, self.config.temperature, self.config.max_tokens)
         return self._llm
 
     async def execute(self, state: dict[str, Any]) -> dict[str, Any]:
