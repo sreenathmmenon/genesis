@@ -370,3 +370,57 @@ alembic revision --autogenerate -m "describe_change"     # create new migration
 ```
 
 The async engine uses `asyncpg`; Alembic uses `psycopg2` for its sync runner (`sync_database_url` in `config.py` handles the swap automatically).
+
+---
+
+## How to Add a New Workflow Template
+
+Templates live in `backend/genesis/api/templates.py` as entries in the `TEMPLATES` list. Add a dict with these fields:
+
+```python
+{
+    "name": "my-template",                     # URL slug — must be unique
+    "display_name": "My Template",
+    "category": "automation",                  # automation | intelligence | ops | engineering
+    "description": "One sentence shown in the gallery.",
+    "intent": "The plain-English intent sent to the Genesis build pipeline.",
+    "estimated_time": "~60s",
+    "tools": ["web_search", "telegram_send"],  # informational only — Builder decides actual tools
+    "agents": 3,                               # informational node count shown in UI
+}
+```
+
+That's it. The template immediately appears in the gallery at `/templates` and is deployable via `POST /api/v1/templates/{name}/deploy`. No other files to change.
+
+---
+
+## How to Add a New Messaging Channel
+
+Genesis uses a `ChannelBridge` base class in `backend/genesis/channels/base.py`. To add a new channel (e.g. Discord):
+
+**1. Create the bridge** — `backend/genesis/channels/discord.py`:
+
+```python
+from genesis.channels.base import ChannelBridge
+
+class DiscordBridge(ChannelBridge):
+    async def setup(self) -> None:
+        # initialise your client, register handlers
+        ...
+
+    async def teardown(self) -> None:
+        # clean shutdown
+        ...
+
+    async def send_message(self, chat_id: str, text: str) -> None:
+        # send a message to the channel
+        ...
+```
+
+**2. Add a tool** — in `backend/genesis/tools/implementations.py`, add a `discord_send` entry to `_TOOL_MAP` following the pattern of `telegram_send`.
+
+**3. Wire up in `main.py`** — import your bridge and add it to the lifespan startup/shutdown alongside `TelegramBridge`.
+
+**4. Add config** — add any tokens/webhook URLs to `backend/genesis/config.py` and `.env.example`.
+
+The new tool is immediately available to all agents in the Builder's tool list.
