@@ -100,12 +100,13 @@ export function Nav() {
   return (
     <nav className="nav-sidebar">
       {/* Logo */}
-      <div style={{
+      <Link href="/" style={{
         padding: '20px 18px',
         borderBottom: '1px solid #EEF0F4',
         flexShrink: 0,
         display: 'flex',
         alignItems: 'center',
+        textDecoration: 'none',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
@@ -143,7 +144,7 @@ export function Nav() {
             marginLeft: 2,
           }} />
         </div>
-      </div>
+      </Link>
 
       {/* Nav items */}
       <div style={{ flex: 1, padding: '12px 0' }}>
