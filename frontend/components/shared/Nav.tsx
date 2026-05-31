@@ -151,10 +151,27 @@ export function Nav() {
           <Link
             key={item.href}
             href={item.href}
-            className={`nav-item${isActive(item.href) ? ' nav-item--active' : ''}`}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '9px 16px 9px 20px',
+              fontSize: 13.5,
+              fontWeight: isActive(item.href) ? 500 : 400,
+              color: isActive(item.href) ? '#15803D' : '#64748B',
+              textDecoration: 'none',
+              borderRadius: 8,
+              margin: '2px 8px',
+              background: isActive(item.href) ? '#F0FDF4' : 'transparent',
+              transition: 'color 120ms, background 120ms',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              minHeight: 40,
+              letterSpacing: '-0.003em',
+            }}
           >
             <span style={{
-              color: isActive(item.href) ? '#16A34A' : 'currentColor',
+              color: isActive(item.href) ? '#16A34A' : '#94A3B8',
               flexShrink: 0,
               display: 'flex',
               alignItems: 'center',
