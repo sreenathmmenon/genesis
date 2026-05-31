@@ -12,7 +12,7 @@ That is the difference: Genesis doesn't automate tasks. It replaces the reasonin
 
 ## What Genesis Actually Does
 
-**The build pipeline** takes your natural-language intent and runs it through five meta-agents — Architect, Decomposer, Builder, Critic, and Validator — each powered by Claude Sonnet 4. The Architect designs the multi-agent topology. The Decomposer breaks it into per-node responsibilities. The Builder generates executable LangGraph `graph_json`. The Critic reviews it and can send it back up to three times. The Validator runs safety checks and produces a cost estimate. If you approve, the workflow is deployed as a live, scheduled system.
+**The build pipeline** takes your natural-language intent and runs it through five meta-agents — Architect, Decomposer, Builder, Critic, and Validator — each powered by Claude Haiku 4.5 (fast, ~60 seconds end-to-end). The Architect designs the multi-agent topology. The Decomposer breaks it into per-node responsibilities. The Builder generates executable LangGraph `graph_json`. The Critic reviews it and can send it back up to three times. The Validator runs safety checks and produces a cost estimate. If you approve, the workflow is deployed as a live, scheduled system.
 
 **The execution pipeline** takes the deployed `graph_json` and compiles it into a real LangGraph `StateGraph` at runtime — no template expansion, no code generation you can't inspect. Each node runs a ReAct loop: call the LLM, invoke tools, observe results, iterate up to 10 rounds, then pass state to the next node. Every step is written to PostgreSQL and streamed over Redis pub/sub so the web dashboard shows you the full reasoning trace in real time, as it happens.
 
@@ -56,7 +56,7 @@ That is the difference: Genesis doesn't automate tasks. It replaces the reasonin
 
 - **StateGraph maps 1:1 to the visual canvas.** ReactFlow nodes are LangGraph nodes; ReactFlow edges are LangGraph edges. The canvas IS the execution graph — no translation layer, no impedance mismatch.
 - **Conditional edges enable the Critic retry loop.** The `_critic_router` function inspects `GenesisState.critic_approved` and routes back to the Builder or forward to the Validator. This pattern is trivial in LangGraph and painful in every alternative.
-- **AsyncPostgresSaver checkpointer enables run recovery.** Every intermediate state is checkpointed to PostgreSQL. A crashed run can be resumed from the last checkpoint without replaying completed nodes.
+- **MemorySaver checkpointer for the build pipeline.** The meta-agent graph uses an in-memory checkpointer (no external dependencies). Deployed workflow runs are persisted to PostgreSQL via the Run/Message tables.
 - **Async-native.** LangGraph's async execution model matches FastAPI and SQLAlchemy 2.0 async — no `loop.run_until_complete` gymnastics, no thread pools to manage.
 
 ---
@@ -127,9 +127,9 @@ GOOGLE_SHEETS_CREDENTIALS_JSON=
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate
-pip install -e .
+pip install -r requirements.txt
 alembic upgrade head
-uvicorn genesis.main:app --reload --port 8000
+uvicorn main:app --reload --port 8001
 ```
 
 **Step 4 — Run the frontend**
@@ -140,7 +140,9 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The API is at [http://localhost:8000](http://localhost:8000). Interactive docs: [http://localhost:8000/docs](http://localhost:8000/docs).
+Open [http://localhost:3000](http://localhost:3000). The API is at [http://localhost:8001](http://localhost:8001). Interactive docs: [http://localhost:8001/docs](http://localhost:8001/docs).
+
+**Live demo:** [https://genesis-ai.up.railway.app](https://genesis-ai.up.railway.app)
 
 ---
 
@@ -150,7 +152,7 @@ Here is what it looks like to watch Genesis work.
 
 You open the canvas at `localhost:3000`. There is a single text field. You type: "Every Monday morning, check my top three competitors' pricing pages, compare to last week, identify what changed and why it matters, and send me a brief I can act on." You click Build.
 
-The build panel opens. Over the next 45 seconds you watch five meta-agents run in sequence. The Architect outputs a topology: five nodes — a Scraper, a Diff Analyzer, a Context Researcher, a Synthesis Agent, and a Delivery Agent. The Decomposer assigns each node a precise responsibility and a tool list. The Builder generates the full `graph_json` — node IDs, system prompts, tool assignments, edges. The Critic reads the output and flags that the Diff Analyzer needs access to last week's run output; it sends the spec back. The Builder revises. The Critic approves. The Validator estimates cost at $0.04 per run and clears it.
+The build panel opens. Over the next 60 seconds you watch five meta-agents run in sequence. The Architect outputs a topology: five nodes — a Scraper, a Diff Analyzer, a Context Researcher, a Synthesis Agent, and a Delivery Agent. The Decomposer assigns each node a precise responsibility and a tool list. The Builder generates the full `graph_json` — node IDs, system prompts, tool assignments, edges. The Critic reads the output and flags that the Diff Analyzer needs access to last week's run output; it sends the spec back. The Builder revises. The Critic approves. The Validator estimates cost at $0.04 per run and clears it.
 
 You click Deploy. Five nodes appear on the ReactFlow canvas, connected by directed edges. The graph is live.
 
@@ -244,7 +246,7 @@ Templates live in `backend/genesis/api/templates.py` as dicts in the `TEMPLATES`
         "nodes": [
             {
                 "id": "agent_one",
-                "model_name": "claude-sonnet-4-5",
+                "model_name": "claude-sonnet-4-6",
                 "system_prompt": "You are Agent One. ...",
                 "tools": ["web_search", "fetch_page"],
                 "memory_type": "none",
@@ -372,9 +374,9 @@ DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
 
 | Model | Provider | Use |
 |---|---|---|
-| `claude-sonnet-4-5` | Anthropic | Default for all meta-agents and generated nodes |
-| `claude-opus-4-7` | Anthropic | Highest capability; use for complex reasoning nodes |
-| `claude-haiku-4-5-20251001` | Anthropic | Fast and cheap; Repair Agent default |
+| `claude-haiku-4-5-20251001` | Anthropic | Default for all meta-agents (fast, ~60s build) |
+| `claude-sonnet-4-6` | Anthropic | Higher quality; use for complex reasoning nodes |
+| `claude-opus-4-7` | Anthropic | Highest capability; use for most demanding nodes |
 | `gpt-4o` | OpenAI | Full capability GPT-4 class |
 | `gpt-4o-mini` | OpenAI | Low-cost GPT-4 class |
 | `gemini-1.5-pro` | Google | Google's full capability model |
