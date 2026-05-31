@@ -59,6 +59,7 @@ interface GraphNode {
   memory_type: MemoryType
   guardrails: Guardrails
   interaction_rules: InteractionRules
+  channel: string
 }
 
 interface SectionProps { title: string; children: React.ReactNode; defaultOpen?: boolean }
@@ -116,6 +117,7 @@ export function AgentConfigPanel({ workflow }: { workflow: Workflow | null }) {
     const found: GraphNode = {
       ...raw,
       memory_type: (raw.memory_type as MemoryType | undefined) ?? 'none',
+      channel: (raw.channel as string | undefined) ?? 'none',
       guardrails: {
         ...DEFAULT_GUARDRAILS,
         ...(raw.guardrails as Partial<Guardrails> | undefined),
@@ -428,6 +430,29 @@ export function AgentConfigPanel({ workflow }: { workflow: Workflow | null }) {
           </FieldRow>
           <p className="text-xs text-text-tertiary">
             Leave blank for on-demand execution.
+          </p>
+        </Section>
+
+        {/* 6. Channel */}
+        <Section title="Output Channel" defaultOpen={false}>
+          <FieldRow label="Delivery channel">
+            <select
+              value={node.channel}
+              onChange={(e) => patch('channel', e.target.value)}
+              className="w-full bg-surface-1 border border-border-2 rounded-md px-3 py-2 text-sm text-text-primary transition-colors duration-fast focus:border-border-3 focus:outline-none appearance-none"
+            >
+              <option value="none">None (dashboard only)</option>
+              <option value="telegram">Telegram</option>
+              <option value="slack">Slack</option>
+              <option value="email">Email</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="webhook">Webhook</option>
+            </select>
+          </FieldRow>
+          <p className="text-xs text-text-tertiary">
+            {node.channel === 'none'
+              ? 'Results appear in the Genesis dashboard only.'
+              : `Results will be delivered via ${node.channel} in addition to the dashboard.`}
           </p>
         </Section>
 

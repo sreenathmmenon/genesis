@@ -16,7 +16,7 @@ ALLOWED_MODELS = [
 ]
 
 
-def get_llm(model_name: str, temperature: float = 0.1) -> BaseChatModel:
+def get_llm(model_name: str, temperature: float = 0.1, max_tokens: int = 8096) -> BaseChatModel:
     if model_name not in ALLOWED_MODELS:
         raise ValueError(f"Model '{model_name}' is not in the allowed list: {ALLOWED_MODELS}")
 
@@ -25,7 +25,7 @@ def get_llm(model_name: str, temperature: float = 0.1) -> BaseChatModel:
             model=model_name,
             temperature=temperature,
             anthropic_api_key=settings.anthropic_api_key,
-            max_tokens=8096,
+            max_tokens=max_tokens,
         )
 
     if model_name.startswith(("gpt-", "o1-")):
@@ -33,6 +33,7 @@ def get_llm(model_name: str, temperature: float = 0.1) -> BaseChatModel:
             model=model_name,
             temperature=temperature,
             api_key=settings.openai_api_key,
+            max_tokens=max_tokens,
         )
 
     if model_name.startswith("gemini-"):
@@ -40,6 +41,7 @@ def get_llm(model_name: str, temperature: float = 0.1) -> BaseChatModel:
             model=model_name,
             temperature=temperature,
             google_api_key=settings.google_api_key,
+            max_output_tokens=max_tokens,
         )
 
     raise ValueError(f"Unknown model provider for '{model_name}'")

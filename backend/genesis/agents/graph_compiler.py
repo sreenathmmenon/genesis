@@ -149,9 +149,16 @@ async def compile_workflow_from_json(
     # Tools that produce side-effects (send/notify) — stop looping after using these
     from genesis.tools.implementations import TERMINAL_TOOLS as _TERMINAL_TOOLS
 
-    def _make_node(node_id: str, sp: str, lm, tool_names: list[str] = [], memory_type: str = "none"):
+    def _make_node(node_id: str, sp: str, lm, tool_names: list[str] = [], memory_type: str = "none", guardrails: dict | None = None, model_name: str = "claude-sonnet-4-5"):
+        _guardrails = guardrails or {}
+        _max_tokens: int = int(_guardrails.get("max_tokens", 8096))
+        _max_iterations: int = int(_guardrails.get("max_iterations", 10))
+
+        # Re-instantiate LLM with guardrail-enforced max_tokens
+        enforced_lm = get_llm(model_name, max_tokens=_max_tokens)
+
         tools = get_tools_for_agent(tool_names)
-        bound_lm = lm.bind_tools(tools) if tools else lm
+        bound_lm = enforced_lm.bind_tools(tools) if tools else enforced_lm
         tool_map = {t.name: t for t in tools}
 
         _is_terminal = bool(tools) and all(t in _TERMINAL_TOOLS for t in tool_names)
@@ -193,13 +200,14 @@ async def compile_workflow_from_json(
 
             messages = [SystemMessage(content=active_system_prompt), HumanMessage(content=context)]
             results: dict[str, Any] = {}
-            max_rounds = 10
-            first_round_lm = lm.bind_tools(tools, tool_choice="any") if tools else lm
+            max_rounds = _max_iterations
+            first_round_lm = enforced_lm.bind_tools(tools, tool_choice="any") if tools else enforced_lm
 
             for _round in range(max_rounds):
                 try:
                     lm_to_use = first_round_lm if (_round == 0 and tools) else bound_lm
                     response = await lm_to_use.ainvoke(messages)
+                    logger.debug("Node [%s] round %d — guardrails: max_tokens=%d max_iterations=%d", node_id, _round, _max_tokens, _max_iterations)
                 except Exception as exc:
                     logger.error("Node [%s] LLM invoke failed (round %d): %s", node_id, _round, exc)
                     results[node_id] = f"LLM_ERROR: {exc}"
@@ -261,7 +269,7 @@ async def compile_workflow_from_json(
                 try:
                     synthesis_prompt = "Based on all the research and tool results above, write your final conclusion and summary. Do NOT call any more tools."
                     messages.append(HumanMessage(content=synthesis_prompt))
-                    final_response = await lm.ainvoke(messages)
+                    final_response = await enforced_lm.ainvoke(messages)
                     conclusion = str(final_response.content)
                     results[node_id] = conclusion
                     if db_writer is not None:
@@ -287,8 +295,9 @@ async def compile_workflow_from_json(
         system_prompt: str = node.get("system_prompt", "You are a helpful agent.")
         tool_names: list[str] = node.get("tools") or []
         memory_type: str = node.get("memory_type", "none")
+        guardrails: dict = node.get("guardrails") or {}
         llm = get_llm(model_name)
-        graph.add_node(node_id, _make_node(node_id, system_prompt, llm, tool_names, memory_type))
+        graph.add_node(node_id, _make_node(node_id, system_prompt, llm, tool_names, memory_type, guardrails, model_name))
 
     # Build edge sets for parallel start/end detection
     nodes_with_incoming: set[str] = {e["target"] for e in edges if e.get("target")}
@@ -301,12 +310,49 @@ async def compile_workflow_from_json(
     for nid in entry_nodes:
         graph.add_edge(START, nid)
 
+    # Group conditional edges by source so we can build routers per source node
+    # An edge is conditional when it carries a non-empty "condition" field.
+    # condition format: a Python expression referencing `state` — e.g.
+    #   "state.get('intermediate_results',{}).get('classifier','').startswith('APPROVED')"
+    # Unconditional edges (no condition or condition=="always") are added normally.
+    from collections import defaultdict
+    conditional_edges: dict[str, list[dict]] = defaultdict(list)
+
     added: set[tuple[str, str]] = set()
     for edge in edges:
         src, dst = edge.get("source"), edge.get("target")
-        if src and dst and (src, dst) not in added:
+        if not src or not dst:
+            continue
+        condition: str = (edge.get("condition") or "").strip()
+        if condition and condition.lower() != "always":
+            conditional_edges[src].append({"target": dst, "condition": condition})
+        elif (src, dst) not in added:
             graph.add_edge(src, dst)
             added.add((src, dst))
+
+    # Build a conditional router for each source node that has conditional edges.
+    # The router evaluates each condition expression against the live state dict.
+    # Falls back to the first target if no condition matches (safe default).
+    for src, cond_edges in conditional_edges.items():
+        targets = {e["target"]: e["condition"] for e in cond_edges}
+        fallback = cond_edges[0]["target"]
+
+        def _make_router(t: dict[str, str], fb: str):
+            def _router(state: WorkflowState) -> str:
+                for target, condition_expr in t.items():
+                    try:
+                        if eval(condition_expr, {"state": state, "__builtins__": {}}):  # noqa: S307
+                            logger.info("Conditional edge: %s → %s (condition matched)", src, target)
+                            return target
+                    except Exception as exc:
+                        logger.warning("Condition eval failed (%s): %s", condition_expr[:60], exc)
+                logger.info("Conditional edge: no condition matched, falling back to %s", fb)
+                return fb
+            return _router
+
+        target_map = {t: t for t in targets}
+        graph.add_conditional_edges(src, _make_router(targets, fallback), target_map)
+        logger.info("Registered conditional edges from '%s' → %s", src, list(targets.keys()))
 
     for nid in exit_nodes:
         graph.add_edge(nid, END)
