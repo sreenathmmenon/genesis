@@ -227,6 +227,7 @@ export default function HomePage() {
                   letterSpacing: '-0.03em',
                   lineHeight: 1,
                   marginBottom: 4,
+                  fontFamily: 'Inter, system-ui, sans-serif',
                 }}>
                   {loading ? (
                     <div className="animate-pulse bg-gray-200 rounded h-8 w-16" />
