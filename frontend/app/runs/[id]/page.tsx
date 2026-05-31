@@ -7,7 +7,7 @@ import { Nav } from '@/components/shared/Nav'
 import { api } from '@/lib/api'
 import type { Run, RunOutput, Message } from '@/lib/types'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8001'
+const API_BASE = ''
 
 function relativeTime(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime()
