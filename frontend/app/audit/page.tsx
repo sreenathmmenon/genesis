@@ -346,7 +346,7 @@ export default function AuditPage() {
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F7F8FA' }}>
       <Nav />
-      <div className="page-content">
+      <div className="page-content" style={{ paddingLeft: 220, flex: 1, overflowY: "auto", minHeight: 0, display: "flex", flexDirection: "column", background: "#F6F8FC" }}>
         <div style={{ maxWidth: 1080, width: '100%', margin: '0 auto', padding: '36px 32px 64px' }}>
 
           {/* Header */}

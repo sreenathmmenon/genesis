@@ -470,7 +470,7 @@ export default function RunPage() {
     return (
       <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F7F8FA' }}>
         <Nav />
-        <div className="page-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="page-content" style={{ paddingLeft: 220, flex: 1, overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F6F8FC' }}>
           <span style={{ fontSize: 13, color: '#9CA3AF' }}>Loading run…</span>
         </div>
       </div>
@@ -481,7 +481,7 @@ export default function RunPage() {
     return (
       <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F7F8FA' }}>
         <Nav />
-        <div className="page-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="page-content" style={{ paddingLeft: 220, flex: 1, overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F6F8FC' }}>
           <span style={{ fontSize: 13, color: '#DC2626' }}>Run not found</span>
         </div>
       </div>
@@ -495,7 +495,7 @@ export default function RunPage() {
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F7F8FA' }}>
       <Nav />
-      <div className="page-content">
+      <div className="page-content" style={{ paddingLeft: 220, flex: 1, overflowY: 'auto', background: '#F6F8FC' }}>
         <div style={{ maxWidth: 860, width: '100%', margin: '0 auto', padding: '36px 32px 80px' }}>
 
           {/* Breadcrumb */}
