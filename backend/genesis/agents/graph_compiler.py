@@ -16,6 +16,67 @@ from genesis.utils.model_router import get_llm
 logger = get_logger("genesis.graph_compiler")
 
 
+async def _recall_memory(node_id: str, context: str, limit: int = 3) -> str:
+    """Retrieve relevant past conclusions for this node from Qdrant."""
+    try:
+        from qdrant_client import AsyncQdrantClient
+        from genesis.config import settings
+        from genesis.agents.memory_agent import _embed
+
+        vector = await _embed(f"{node_id}: {context[:500]}")
+        client = AsyncQdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key or None)
+        results = await client.search(
+            collection_name=f"node_{node_id}",
+            query_vector=vector,
+            limit=limit,
+            score_threshold=0.70,
+            with_payload=True,
+        )
+        await client.close()
+        if not results:
+            return ""
+        parts = [f"- {r.payload.get('conclusion', '')[:300]}" for r in results if r.payload.get('conclusion')]
+        return "\n".join(parts)
+    except Exception as exc:
+        logger.debug("Memory recall failed for node %s: %s", node_id, exc)
+        return ""
+
+
+async def _store_memory(node_id: str, context: str, conclusion: str) -> None:
+    """Store this node's conclusion in its Qdrant collection for future recall."""
+    try:
+        import uuid as _uuid
+        from qdrant_client import AsyncQdrantClient
+        from qdrant_client.models import Distance, PointStruct, VectorParams
+        from genesis.config import settings
+        from genesis.agents.memory_agent import _embed
+
+        vector = await _embed(f"{node_id}: {context[:500]}")
+        collection = f"node_{node_id}"
+        client = AsyncQdrantClient(url=settings.qdrant_url, api_key=settings.qdrant_api_key or None)
+
+        # Ensure collection exists
+        collections = [c.name for c in (await client.get_collections()).collections]
+        if collection not in collections:
+            await client.create_collection(
+                collection_name=collection,
+                vectors_config=VectorParams(size=1536, distance=Distance.COSINE),
+            )
+
+        await client.upsert(
+            collection_name=collection,
+            points=[PointStruct(
+                id=str(_uuid.uuid4()),
+                vector=vector,
+                payload={"node_id": node_id, "context_snippet": context[:200], "conclusion": conclusion[:1000]},
+            )],
+        )
+        await client.close()
+        logger.debug("Stored memory for node %s", node_id)
+    except Exception as exc:
+        logger.debug("Memory store failed for node %s: %s", node_id, exc)
+
+
 def _critic_router(state: GenesisState) -> str:
     """Route after critic: approve → validator, retry → builder (max 3 iters)."""
     if state.get("critic_approved"):
@@ -88,7 +149,7 @@ async def compile_workflow_from_json(
     # Tools that produce side-effects (send/notify) — stop looping after using these
     from genesis.tools.implementations import TERMINAL_TOOLS as _TERMINAL_TOOLS
 
-    def _make_node(node_id: str, sp: str, lm, tool_names: list[str] = []):
+    def _make_node(node_id: str, sp: str, lm, tool_names: list[str] = [], memory_type: str = "none"):
         tools = get_tools_for_agent(tool_names)
         bound_lm = lm.bind_tools(tools) if tools else lm
         tool_map = {t.name: t for t in tools}
@@ -122,7 +183,15 @@ async def compile_workflow_from_json(
             if db_writer is not None:
                 await db_writer({"type": "node_started", "node": node_id, "agent_name": node_id.replace("_", " ").title()})
 
-            messages = [SystemMessage(content=system_prompt), HumanMessage(content=context)]
+            # Memory retrieval: prepend relevant past conclusions to system prompt
+            active_system_prompt = system_prompt
+            if memory_type != "none":
+                recalled = await _recall_memory(node_id, context)
+                if recalled:
+                    active_system_prompt = system_prompt + "\n\n## Relevant context from past runs:\n" + recalled
+                    logger.debug("Node [%s] recalled %d memory entries", node_id, recalled.count("\n- ") + 1)
+
+            messages = [SystemMessage(content=active_system_prompt), HumanMessage(content=context)]
             results: dict[str, Any] = {}
             max_rounds = 10
             first_round_lm = lm.bind_tools(tools, tool_choice="any") if tools else lm
@@ -144,6 +213,8 @@ async def compile_workflow_from_json(
                     results[node_id] = response_content
                     if db_writer is not None:
                         await db_writer({"type": "agent_conclusion", "node": node_id, "content": response_content})
+                    if memory_type != "none":
+                        await _store_memory(node_id, context, response_content)
                     break
 
                 all_terminal = all(tc["name"] in _TERMINAL_TOOLS for tc in tool_calls)
@@ -181,6 +252,8 @@ async def compile_workflow_from_json(
                     if db_writer is not None:
                         await db_writer({"type": "agent_conclusion", "node": node_id, "content": results.get(node_id, "Action completed.")})
                     results.setdefault(node_id, "")
+                    if memory_type != "none" and results.get(node_id):
+                        await _store_memory(node_id, context, results[node_id])
                     break
             else:
                 logger.warning("Node [%s] hit max tool call rounds (%d)", node_id, max_rounds)
@@ -193,6 +266,8 @@ async def compile_workflow_from_json(
                     results[node_id] = conclusion
                     if db_writer is not None:
                         await db_writer({"type": "agent_conclusion", "node": node_id, "content": conclusion})
+                    if memory_type != "none":
+                        await _store_memory(node_id, context, conclusion)
                 except Exception as exc:
                     logger.error("Node [%s] synthesis after max rounds failed: %s", node_id, exc)
                     results.setdefault(node_id, f"Max tool rounds reached.")
@@ -211,8 +286,9 @@ async def compile_workflow_from_json(
             logger.warning("Node %s: unknown model '%s' — using claude-sonnet-4-5", node_id, raw_model)
         system_prompt: str = node.get("system_prompt", "You are a helpful agent.")
         tool_names: list[str] = node.get("tools") or []
+        memory_type: str = node.get("memory_type", "none")
         llm = get_llm(model_name)
-        graph.add_node(node_id, _make_node(node_id, system_prompt, llm, tool_names))
+        graph.add_node(node_id, _make_node(node_id, system_prompt, llm, tool_names, memory_type))
 
     # Build edge sets for parallel start/end detection
     nodes_with_incoming: set[str] = {e["target"] for e in edges if e.get("target")}

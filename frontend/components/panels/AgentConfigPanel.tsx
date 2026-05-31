@@ -26,13 +26,39 @@ const AVAILABLE_TOOLS = [
   'scheduler',
 ] as const
 
+export type MemoryType = 'none' | 'short_term' | 'long_term'
+
+interface Guardrails {
+  max_tokens: number
+  max_iterations: number
+  require_human_approval: boolean
+}
+
+interface InteractionRules {
+  can_spawn_agents: boolean
+  can_modify_workflow: boolean
+}
+
+const DEFAULT_GUARDRAILS: Guardrails = {
+  max_tokens: 4096,
+  max_iterations: 10,
+  require_human_approval: false,
+}
+
+const DEFAULT_INTERACTION_RULES: InteractionRules = {
+  can_spawn_agents: false,
+  can_modify_workflow: false,
+}
+
 interface GraphNode {
   id: string
   system_prompt: string
   model_name: string
   tools: string[]
   schedule: string | null
-  memory_type?: string
+  memory_type: MemoryType
+  guardrails: Guardrails
+  interaction_rules: InteractionRules
 }
 
 interface SectionProps { title: string; children: React.ReactNode; defaultOpen?: boolean }
@@ -83,8 +109,23 @@ export function AgentConfigPanel({ workflow }: { workflow: Workflow | null }) {
 
     const graphJson = workflow.graph_json as { nodes?: GraphNode[] } | null
     const nodes = graphJson?.nodes ?? []
-    const found = nodes.find((n) => n.id === selectedNodeId) ?? null
-    setNode(found ? { ...found } : null)
+    const raw = nodes.find((n) => n.id === selectedNodeId) ?? null
+    if (!raw) { setNode(null); setDirty(false); return }
+
+    // Apply defaults for fields that may be absent in older graph_json docs
+    const found: GraphNode = {
+      ...raw,
+      memory_type: (raw.memory_type as MemoryType | undefined) ?? 'none',
+      guardrails: {
+        ...DEFAULT_GUARDRAILS,
+        ...(raw.guardrails as Partial<Guardrails> | undefined),
+      },
+      interaction_rules: {
+        ...DEFAULT_INTERACTION_RULES,
+        ...(raw.interaction_rules as Partial<InteractionRules> | undefined),
+      },
+    }
+    setNode(found)
     setDirty(false)
     setSaveState('idle')
     setErrorMsg('')
@@ -254,7 +295,128 @@ export function AgentConfigPanel({ workflow }: { workflow: Workflow | null }) {
           )}
         </Section>
 
-        {/* 4. Schedule */}
+        {/* 4. Limits & Memory */}
+        <Section title="Limits & Memory" defaultOpen={false}>
+
+          {/* Memory type */}
+          <FieldRow label="Memory type">
+            <select
+              value={node.memory_type}
+              onChange={(e) => patch('memory_type', e.target.value as MemoryType)}
+              className="w-full bg-surface-1 border border-border-2 rounded-md px-3 py-2 text-sm text-text-primary transition-colors duration-fast focus:border-border-3 focus:outline-none appearance-none"
+            >
+              <option value="none">No memory (stateless)</option>
+              <option value="short_term">Short-term (recalls last 3 runs)</option>
+              <option value="long_term">Long-term (recalls all past runs)</option>
+            </select>
+          </FieldRow>
+          {node.memory_type !== 'none' && (
+            <p className="text-xs text-text-tertiary">
+              This agent will remember its conclusions and apply them to future runs.
+            </p>
+          )}
+
+          {/* Guardrails */}
+          <FieldRow label="Max output tokens">
+            <Input
+              type="number"
+              value={String(node.guardrails.max_tokens)}
+              onChange={(e) => patch('guardrails', {
+                ...node.guardrails,
+                max_tokens: Math.min(16384, Math.max(256, Number(e.target.value))),
+              })}
+              min={256}
+              max={16384}
+              step={256}
+            />
+          </FieldRow>
+
+          <FieldRow label="Max tool call rounds">
+            <Input
+              type="number"
+              value={String(node.guardrails.max_iterations)}
+              onChange={(e) => patch('guardrails', {
+                ...node.guardrails,
+                max_iterations: Math.min(20, Math.max(1, Number(e.target.value))),
+              })}
+              min={1}
+              max={20}
+            />
+          </FieldRow>
+
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={node.guardrails.require_human_approval}
+              onChange={(e) => patch('guardrails', {
+                ...node.guardrails,
+                require_human_approval: e.target.checked,
+              })}
+              className="sr-only"
+            />
+            <span className={[
+              'w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors duration-fast',
+              node.guardrails.require_human_approval
+                ? 'bg-accent border-accent'
+                : 'bg-surface-2 border-border-2 group-hover:border-border-3',
+            ].join(' ')}>
+              {node.guardrails.require_human_approval && (
+                <span className="text-text-inverse text-[10px] font-bold leading-none">✓</span>
+              )}
+            </span>
+            <span className="text-sm text-text-secondary">Require human approval before acting</span>
+          </label>
+
+          {/* Interaction rules */}
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={node.interaction_rules.can_spawn_agents}
+              onChange={(e) => patch('interaction_rules', {
+                ...node.interaction_rules,
+                can_spawn_agents: e.target.checked,
+              })}
+              className="sr-only"
+            />
+            <span className={[
+              'w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors duration-fast',
+              node.interaction_rules.can_spawn_agents
+                ? 'bg-accent border-accent'
+                : 'bg-surface-2 border-border-2 group-hover:border-border-3',
+            ].join(' ')}>
+              {node.interaction_rules.can_spawn_agents && (
+                <span className="text-text-inverse text-[10px] font-bold leading-none">✓</span>
+              )}
+            </span>
+            <span className="text-sm text-text-secondary">Can spawn sub-agents</span>
+          </label>
+
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={node.interaction_rules.can_modify_workflow}
+              onChange={(e) => patch('interaction_rules', {
+                ...node.interaction_rules,
+                can_modify_workflow: e.target.checked,
+              })}
+              className="sr-only"
+            />
+            <span className={[
+              'w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors duration-fast',
+              node.interaction_rules.can_modify_workflow
+                ? 'bg-accent border-accent'
+                : 'bg-surface-2 border-border-2 group-hover:border-border-3',
+            ].join(' ')}>
+              {node.interaction_rules.can_modify_workflow && (
+                <span className="text-text-inverse text-[10px] font-bold leading-none">✓</span>
+              )}
+            </span>
+            <span className="text-sm text-text-secondary">Can modify its own workflow</span>
+          </label>
+
+        </Section>
+
+        {/* 5. Schedule */}
         <Section title="Schedule" defaultOpen={false}>
           <FieldRow label="Cron Expression">
             <Input

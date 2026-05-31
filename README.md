@@ -1,8 +1,20 @@
 # Genesis — Autonomous Multi-Agent Platform
 
-Describe what you want in plain English. Genesis designs, builds, validates, and deploys a multi-agent system that runs the task autonomously. Every agent reasons — it observes results, decides what to do next, synthesizes conclusions, and exposes its full reasoning chain on the web dashboard.
+You have an idea: "Every Monday, tell me which of my top three competitors changed their pricing, what changed, and what it means for me."
 
-Unlike Zapier or IFTTT, Genesis agents do not follow fixed if-then rules. Each node runs a ReAct loop: call an LLM, invoke tools, observe results, iterate — up to 10 rounds per node — before passing state to the next agent.
+Before Genesis, this takes a day. You open five browser tabs. You write a Python script that breaks in two weeks. You build a Zapier flow that tells you "competitor changed price" with no context and no reasoning. You still do all the thinking yourself. The tools outsourced the clicking — not the judgment.
+
+With Genesis, you type the intent. Sixty seconds later, a 5-node LangGraph pipeline is running. Each agent observes results, decides what to do next, calls real tools, and hands state to the next agent. A structured brief appears in your dashboard. You didn't write a line of code. You didn't think through the steps. You just described the outcome you wanted.
+
+That is the difference: Genesis doesn't automate tasks. It replaces the reasoning loop.
+
+---
+
+## What Genesis Actually Does
+
+**The build pipeline** takes your natural-language intent and runs it through five meta-agents — Architect, Decomposer, Builder, Critic, and Validator — each powered by Claude Sonnet 4. The Architect designs the multi-agent topology. The Decomposer breaks it into per-node responsibilities. The Builder generates executable LangGraph `graph_json`. The Critic reviews it and can send it back up to three times. The Validator runs safety checks and produces a cost estimate. If you approve, the workflow is deployed as a live, scheduled system.
+
+**The execution pipeline** takes the deployed `graph_json` and compiles it into a real LangGraph `StateGraph` at runtime — no template expansion, no code generation you can't inspect. Each node runs a ReAct loop: call the LLM, invoke tools, observe results, iterate up to 10 rounds, then pass state to the next node. Every step is written to PostgreSQL and streamed over Redis pub/sub so the web dashboard shows you the full reasoning trace in real time, as it happens.
 
 ---
 
@@ -19,7 +31,7 @@ Unlike Zapier or IFTTT, Genesis agents do not follow fixed if-then rules. Each n
 │                        API + RUNTIME LAYER                              │
 │                  FastAPI + LangGraph 1.0 + APScheduler                  │
 │                                                                         │
-│  Build pipeline (meta-agents, Claude Sonnet 4.5):                       │
+│  Build pipeline (meta-agents, Claude Sonnet 4):                         │
 │  User Intent → Architect → Decomposer → Builder ↔ Critic → Validator   │
 │                                          (max 3 retries)    → Approve  │
 │                                                                         │
@@ -129,6 +141,22 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000). The API is at [http://localhost:8000](http://localhost:8000). Interactive docs: [http://localhost:8000/docs](http://localhost:8000/docs).
+
+---
+
+## A Real Run, Step by Step
+
+Here is what it looks like to watch Genesis work.
+
+You open the canvas at `localhost:3000`. There is a single text field. You type: "Every Monday morning, check my top three competitors' pricing pages, compare to last week, identify what changed and why it matters, and send me a brief I can act on." You click Build.
+
+The build panel opens. Over the next 45 seconds you watch five meta-agents run in sequence. The Architect outputs a topology: five nodes — a Scraper, a Diff Analyzer, a Context Researcher, a Synthesis Agent, and a Delivery Agent. The Decomposer assigns each node a precise responsibility and a tool list. The Builder generates the full `graph_json` — node IDs, system prompts, tool assignments, edges. The Critic reads the output and flags that the Diff Analyzer needs access to last week's run output; it sends the spec back. The Builder revises. The Critic approves. The Validator estimates cost at $0.04 per run and clears it.
+
+You click Deploy. Five nodes appear on the ReactFlow canvas, connected by directed edges. The graph is live.
+
+You click Run Now to watch the first execution. The monitoring panel opens. Node by node, messages stream in over WebSocket: the Scraper calling `fetch_page` three times and logging what it retrieved; the Diff Analyzer comparing current prices to stored state and noting that Competitor B dropped their Pro tier by 15%; the Context Researcher calling `web_search` to find whether that coincides with a product announcement; the Synthesis Agent writing a two-paragraph brief. The Delivery Agent calls `email_send`. The run completes. The full reasoning trace — every tool call, every LLM response, every intermediate result — is in the run detail view, downloadable as JSON.
+
+Next Monday, APScheduler fires the workflow at 09:00 UTC. You get the brief without opening a browser.
 
 ---
 
@@ -418,6 +446,26 @@ All routes are prefixed with `/api/v1`. Interactive docs at `/docs`.
 | `GET` | `/audit` | Paginated audit log for all platform events. |
 | `GET` | `/health` | Health check. |
 | `WS` | `/ws/runs/{run_id}` | WebSocket stream of live trace events for a run. |
+
+---
+
+## Architecture Decisions
+
+- **FastAPI over Django or Flask.** Django's ORM is synchronous by default and its weight is unjustified for an API-only backend. Flask requires too much assembly. FastAPI gives us async-first request handling, automatic OpenAPI generation from Pydantic models, and lifespan hooks for managing the LangGraph and APScheduler instances — all with less boilerplate than either alternative.
+
+- **PostgreSQL + Redis + Qdrant, not a single database.** These three do different things and the tradeoffs don't overlap. PostgreSQL is the system of record for structured, relational data (workflows, runs, messages, audit logs) with full ACID guarantees and SQLAlchemy 2.0 async. Redis is the event bus: pub/sub on `RUN_EVENTS` is how the WebSocket layer streams reasoning traces to the browser without polling. Qdrant is the vector store for semantic memory — retrieval that SQL cannot do. Collapsing these into one system means either losing a capability or fighting the wrong tool for the job.
+
+- **ReactFlow for the canvas.** The constraint was that the visual graph had to be the execution graph — not a diagram of it, not a representation of it. ReactFlow's node/edge model maps directly to LangGraph's `StateGraph` node/edge model. When the Builder agent emits `graph_json`, the frontend renders it as ReactFlow nodes and the backend compiles it as LangGraph nodes from the same data structure. There is no translation layer to maintain.
+
+- **Async throughout.** Every layer — FastAPI request handlers, SQLAlchemy queries, LangGraph node execution, tool calls, Redis pub/sub — is async. This is not a style preference. A synchronous tool call inside a node (e.g. a 3-second HTTP request to an external API) would block the thread and prevent other nodes or requests from running concurrently. With `asyncio` throughout, the event loop handles hundreds of concurrent tool calls and WebSocket streams on a single process without thread pools.
+
+---
+
+## What's Next
+
+- **Memory persistence across runs.** The Memory Agent and `MemoryType` model are already wired into the schema. The next step is surfacing per-agent memory in the UI and giving the Builder agent the ability to declare which nodes retain state between executions.
+- **Human-in-the-loop approval.** The Validator already produces a cost estimate and a risk assessment before deploy. The next step is a pause-and-approve gate mid-run — a node can emit a `PENDING_APPROVAL` status, the dashboard shows the pending decision, and execution resumes only after explicit confirmation.
+- **Public shareable run URLs.** Every run already has a unique ID and a full reasoning trace stored in PostgreSQL. Shareable URLs are a read-only view of that trace — no auth required, time-limited, useful for sharing what an agent concluded and how it got there.
 
 ---
 
