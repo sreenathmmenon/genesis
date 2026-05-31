@@ -36,7 +36,7 @@ TEMPLATES: list[dict[str, Any]] = [
             "nodes": [
                 {
                     "id": "pr_watcher",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are PR Watcher. Use the github_api tool to list open pull requests. "
                         "For each PR, check if any changed files include API route definitions "
@@ -49,7 +49,7 @@ TEMPLATES: list[dict[str, Any]] = [
                 },
                 {
                     "id": "contract_diff",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Contract Diff. Given a list of PRs with changed files, "
                         "use github_api to fetch the diff for each PR. "
@@ -63,7 +63,7 @@ TEMPLATES: list[dict[str, Any]] = [
                 },
                 {
                     "id": "risk_assessor",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Risk Assessor. Given API contract diffs, assess the risk level of each change. "
                         "Consider: breaking changes for existing clients, missing backward compatibility, "
@@ -76,7 +76,7 @@ TEMPLATES: list[dict[str, Any]] = [
                 },
                 {
                     "id": "briefing_agent",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Briefing Agent. Given risk assessments of API changes, "
                         "compose a clear, concise summary for the engineering team. "
@@ -89,7 +89,7 @@ TEMPLATES: list[dict[str, Any]] = [
                 },
                 {
                     "id": "report_writer",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Report Writer. Your context contains the complete risk assessment from previous agents. "
                         "Write a clear PR review report in this format:\n\n"
@@ -203,7 +203,7 @@ TEMPLATES: list[dict[str, Any]] = [
             "nodes": [
                 {
                     "id": "changelog_watcher",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Changelog Watcher. Use web_search to find recent changelog entries "
                         "from the top 3 SaaS competitors in the workflow automation space "
@@ -216,7 +216,7 @@ TEMPLATES: list[dict[str, Any]] = [
                 },
                 {
                     "id": "jobs_watcher",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Jobs Watcher. Use web_search to find recent job postings from top competitors "
                         "in the workflow automation space. Search for engineering, product, and GTM roles. "
@@ -229,7 +229,7 @@ TEMPLATES: list[dict[str, Any]] = [
                 },
                 {
                     "id": "reviews_watcher",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Reviews Watcher. Use web_search to find recent customer reviews "
                         "of top competitors on G2, Capterra, or Product Hunt. "
@@ -242,7 +242,7 @@ TEMPLATES: list[dict[str, Any]] = [
                 },
                 {
                     "id": "pattern_agent",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Pattern Agent. Given changelog updates, job postings, and customer reviews "
                         "from competitors, identify cross-cutting patterns and themes. "
@@ -255,7 +255,7 @@ TEMPLATES: list[dict[str, Any]] = [
                 },
                 {
                     "id": "prioritizer",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Prioritizer. Given patterns from competitor intelligence, "
                         "select the 3 most actionable signals for this week. "
@@ -269,7 +269,7 @@ TEMPLATES: list[dict[str, Any]] = [
                 },
                 {
                     "id": "briefing_agent",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Briefing Agent. Your context contains the prioritized signals from previous agents. "
                         "Compose a structured Monday morning competitive intelligence brief. "
@@ -306,7 +306,7 @@ TEMPLATES: list[dict[str, Any]] = [
             "nodes": [
                 {
                     "id": "web_researcher",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Web Researcher. Research the topic given in your input. "
                         "Use web_search to find: (1) top companies in this space with brief descriptions, "
@@ -320,7 +320,7 @@ TEMPLATES: list[dict[str, Any]] = [
                 },
                 {
                     "id": "data_analyst",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Data Analyst. Given raw research findings, extract and structure the key facts: "
                         "- Top 5 competitors with 1-line description each "
@@ -336,7 +336,7 @@ TEMPLATES: list[dict[str, Any]] = [
                 },
                 {
                     "id": "report_writer",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Report Writer. Write a professional market research brief using this format:\n\n"
                         "## Market Research Brief: [Topic]\n\n"
@@ -371,7 +371,7 @@ TEMPLATES: list[dict[str, Any]] = [
             "nodes": [
                 {
                     "id": "job_searcher",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Job Searcher. Search for job postings using web_search. "
                         "Search on LinkedIn, Hacker News 'Who is hiring', RemoteOK, and company career pages. "
@@ -385,7 +385,7 @@ TEMPLATES: list[dict[str, Any]] = [
                 },
                 {
                     "id": "quality_filter",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Quality Filter. Evaluate each job posting and score it 1-10 on: "
                         "role match, company quality, compensation, and remote authenticity. "
@@ -398,7 +398,7 @@ TEMPLATES: list[dict[str, Any]] = [
                 },
                 {
                     "id": "rankings_writer",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Rankings Writer. Write a curated job report:\n\n"
                         "## Job Report: [Role]\n\n"
@@ -433,7 +433,7 @@ TEMPLATES: list[dict[str, Any]] = [
             "nodes": [
                 {
                     "id": "trend_finder",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Trend Finder. Given a content topic, use web_search to find: "
                         "(1) what people are searching for related to this topic, "
@@ -448,7 +448,7 @@ TEMPLATES: list[dict[str, Any]] = [
                 },
                 {
                     "id": "gap_analyzer",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Gap Analyzer. Given trend research, identify: "
                         "(1) What existing content misses or gets wrong "
@@ -463,7 +463,7 @@ TEMPLATES: list[dict[str, Any]] = [
                 },
                 {
                     "id": "brief_writer",
-                    "model_name": "claude-sonnet-4-5",
+                    "model_name": "claude-sonnet-4-6",
                     "system_prompt": (
                         "You are Brief Writer. Write a content brief with 5 ideas:\n\n"
                         "## Content Brief: [Topic]\n\n"
@@ -543,7 +543,7 @@ async def deploy_template(
                 name=nid.replace("_", " ").title(),
                 role=nid,
                 system_prompt=gnode.get("system_prompt", ""),
-                model_name=gnode.get("model_name", "claude-sonnet-4-5"),
+                model_name=gnode.get("model_name", "claude-sonnet-4-6"),
                 tools=gnode.get("tools", []),
                 workflow_id=wf.id,
             )
@@ -558,7 +558,7 @@ async def deploy_template(
                     "label": nid.replace("_", " ").title(),
                     "role": nid,
                     "layer": "generated",
-                    "model": gnode.get("model_name", "claude-sonnet-4-5"),
+                    "model": gnode.get("model_name", "claude-sonnet-4-6"),
                     "tools": gnode.get("tools", []),
                     "status": "idle",
                     "systemPromptPreview": gnode.get("system_prompt", "")[:80],
@@ -584,7 +584,7 @@ async def deploy_template(
                 name=agent_name,
                 role=nid,
                 system_prompt="",
-                model_name="claude-sonnet-4-5",
+                model_name="claude-sonnet-4-6",
                 tools=[],
                 workflow_id=wf.id,
             )
@@ -599,7 +599,7 @@ async def deploy_template(
                     "label": agent_name,
                     "role": nid,
                     "layer": "generated",
-                    "model": "claude-sonnet-4-5",
+                    "model": "claude-sonnet-4-6",
                     "tools": [],
                     "status": "idle",
                     "systemPromptPreview": "",

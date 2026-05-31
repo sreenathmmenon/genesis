@@ -16,7 +16,7 @@ class AgentCreate(BaseModel):
     name: str
     role: str
     system_prompt: str = ""
-    model_name: str = "claude-sonnet-4-5"
+    model_name: str = "claude-sonnet-4-6"
     tools: list[Any] = Field(default_factory=list)
     memory_type: MemoryType = MemoryType.none
     schedule: str | None = None

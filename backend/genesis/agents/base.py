@@ -17,7 +17,7 @@ from genesis.utils.redis_client import AGENT_MESSAGES, BUILD_PROGRESS, redis_cli
 class AgentConfig:
     name: str
     role: str
-    model_name: str = "claude-sonnet-4-5"
+    model_name: str = "claude-sonnet-4-6"
     temperature: float = 0.1
     max_tokens: int = 8096
     max_iterations: int = 10

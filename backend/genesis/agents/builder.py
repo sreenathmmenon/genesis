@@ -19,7 +19,7 @@ Output ONLY valid JSON matching this schema — no markdown, no commentary:
     "nodes": [
       {
         "id": "<agent_name>",
-        "model_name": "claude-sonnet-4-5",
+        "model_name": "claude-sonnet-4-6",
         "system_prompt": "<full system prompt>",
         "tools": [],
         "memory_type": "none",
@@ -42,7 +42,7 @@ Output ONLY valid JSON matching this schema — no markdown, no commentary:
           "layer": "meta | build | validate | ops",
           "status": "idle",
           "tools": [],
-          "model": "claude-sonnet-4-5"
+          "model": "claude-sonnet-4-6"
         }
       }
     ],
@@ -96,7 +96,7 @@ Set "tools" to a list of tool names the agent will need. Empty list for agents t
 Nodes that deliver final output (telegram_send, slack_send, email_send) should have ONLY that one messaging tool.
 
 Available model names (use EXACTLY one of these strings for model_name):
-- "claude-sonnet-4-5"  ← DEFAULT, use this for most nodes
+- "claude-sonnet-4-6"  ← DEFAULT, use this for most nodes
 - "claude-haiku-4-5-20251001"  ← lightweight, use for simple formatting/routing nodes
 - "claude-opus-4-7"  ← most capable, use only for complex reasoning nodes
 Do NOT invent model names. Use exactly the strings above.
@@ -132,7 +132,7 @@ def _build_canvas_from_graph(
                 "layer": "ops",
                 "status": "idle",
                 "tools": n.get("tools", []),
-                "model": n.get("model_name", "claude-sonnet-4-5"),
+                "model": n.get("model_name", "claude-sonnet-4-6"),
             },
         }
         for i, n in enumerate(nodes)

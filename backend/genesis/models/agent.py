@@ -40,7 +40,7 @@ class Agent(Base):
     name: Mapped[str] = mapped_column(nullable=False)
     role: Mapped[str] = mapped_column(nullable=False)
     system_prompt: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    model_name: Mapped[str] = mapped_column(nullable=False, default="claude-sonnet-4-5")
+    model_name: Mapped[str] = mapped_column(nullable=False, default="claude-sonnet-4-6")
     tools: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     memory_type: Mapped[MemoryType] = mapped_column(
         Enum(MemoryType, name="memorytype"),

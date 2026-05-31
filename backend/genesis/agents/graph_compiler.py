@@ -149,7 +149,7 @@ async def compile_workflow_from_json(
     # Tools that produce side-effects (send/notify) — stop looping after using these
     from genesis.tools.implementations import TERMINAL_TOOLS as _TERMINAL_TOOLS
 
-    def _make_node(node_id: str, sp: str, lm, tool_names: list[str] = [], memory_type: str = "none", guardrails: dict | None = None, model_name: str = "claude-sonnet-4-5"):
+    def _make_node(node_id: str, sp: str, lm, tool_names: list[str] = [], memory_type: str = "none", guardrails: dict | None = None, model_name: str = "claude-sonnet-4-6"):
         _guardrails = guardrails or {}
         _max_tokens: int = int(_guardrails.get("max_tokens", 8096))
         _max_iterations: int = int(_guardrails.get("max_iterations", 10))
@@ -286,12 +286,12 @@ async def compile_workflow_from_json(
 
     for node in nodes:
         node_id: str = node["id"]
-        raw_model: str = node.get("model_name", "claude-sonnet-4-5")
+        raw_model: str = node.get("model_name", "claude-sonnet-4-6")
         # Fall back to sonnet if model name is not in the allowed list
         from genesis.utils.model_router import ALLOWED_MODELS
-        model_name = raw_model if raw_model in ALLOWED_MODELS else "claude-sonnet-4-5"
+        model_name = raw_model if raw_model in ALLOWED_MODELS else "claude-sonnet-4-6"
         if model_name != raw_model:
-            logger.warning("Node %s: unknown model '%s' — using claude-sonnet-4-5", node_id, raw_model)
+            logger.warning("Node %s: unknown model '%s' — using claude-sonnet-4-6", node_id, raw_model)
         system_prompt: str = node.get("system_prompt", "You are a helpful agent.")
         tool_names: list[str] = node.get("tools") or []
         memory_type: str = node.get("memory_type", "none")

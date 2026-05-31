@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     # Telegram
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
+    telegram_webhook_url: str = ""  # Set to https://<backend>/api/v1/telegram on Railway
 
     # Slack
     slack_webhook_url: str = ""

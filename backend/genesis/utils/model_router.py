@@ -6,6 +6,7 @@ from langchain_openai import ChatOpenAI
 from genesis.config import settings
 
 ALLOWED_MODELS = [
+    "claude-sonnet-4-6",
     "claude-sonnet-4-5",
     "claude-opus-4-7",
     "claude-haiku-4-5-20251001",

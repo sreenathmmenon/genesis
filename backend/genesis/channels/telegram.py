@@ -48,13 +48,24 @@ class TelegramBridge(ChannelBridge):
 
         await self._app.initialize()
         await self._app.start()
-        await self._app.updater.start_polling(drop_pending_updates=True)
-        self._running = True
-        logger.info("Telegram bridge started (polling)")
+
+        if settings.telegram_webhook_url:
+            # Webhook mode — no polling conflict during rolling deploys
+            await self._app.bot.set_webhook(
+                url=settings.telegram_webhook_url,
+                drop_pending_updates=True,
+            )
+            self._running = True
+            logger.info("Telegram bridge started (webhook: %s)", settings.telegram_webhook_url)
+        else:
+            await self._app.updater.start_polling(drop_pending_updates=True)
+            self._running = True
+            logger.info("Telegram bridge started (polling)")
 
     async def teardown(self) -> None:
         if self._app and self._running:
-            await self._app.updater.stop()
+            if not settings.telegram_webhook_url and self._app.updater:
+                await self._app.updater.stop()
             await self._app.stop()
             await self._app.shutdown()
             self._running = False
