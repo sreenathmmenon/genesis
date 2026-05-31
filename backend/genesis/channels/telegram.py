@@ -194,9 +194,12 @@ class TelegramBridge(ChannelBridge):
     ) -> int:
         """Entry point: receive initial intent, ask user to confirm."""
         text = (update.message.text or "").strip()
-        if len(text) < 10:
+        if len(text) < 5:
             await update.message.reply_text(
-                "Please describe your automation in a bit more detail (at least 10 characters)."
+                "👋 Hi! To get started, describe what you want to automate.\n\n"
+                "*Example:* _Search HN for AI stories daily and send me a digest_\n\n"
+                "Or type /start for help.",
+                parse_mode="Markdown",
             )
             return ConversationHandler.END
 
