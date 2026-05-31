@@ -26,12 +26,12 @@ echo "Starting FastAPI backend..."
 cd backend
 source .venv/bin/activate
 unalias python 2>/dev/null || true
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload \
+uvicorn main:app --host 0.0.0.0 --port 8001 --reload \
   2>&1 | tee logs/genesis.log &
 BACKEND_PID=$!
 cd ..
 echo "$BACKEND_PID" > .backend.pid
-echo "✅ Backend running at http://localhost:8000 (PID: $BACKEND_PID)"
+echo "✅ Backend running at http://localhost:8001 (PID: $BACKEND_PID)"
 
 # Wait for backend to start
 sleep 3
@@ -48,8 +48,8 @@ echo "✅ Frontend running at http://localhost:3000 (PID: $FRONTEND_PID)"
 echo ""
 echo "🚀 Genesis is running!"
 echo "   Canvas:   http://localhost:3000"
-echo "   API docs: http://localhost:8000/docs"
-echo "   Health:   http://localhost:8000/health"
+echo "   API docs: http://localhost:8001/docs"
+echo "   Health:   http://localhost:8001/api/v1/health"
 echo ""
 echo "Send a message to your Telegram bot to start building."
 echo "Press Ctrl+C or run ./stop.sh to stop."
