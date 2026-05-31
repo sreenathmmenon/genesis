@@ -41,3 +41,8 @@ Thumbs.db
 
 # Alembic
 backend/alembic/versions/*.pyc
+
+# Demo recordings
+demo/output/
+demo/*.mp4
+demo/*.webm
