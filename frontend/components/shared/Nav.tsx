@@ -101,10 +101,9 @@ export function Nav() {
     <nav className="nav-sidebar">
       {/* Logo */}
       <div style={{
-        padding: '18px 16px',
-        borderBottom: '1px solid #E5E7EB',
+        padding: '20px 18px',
+        borderBottom: '1px solid #EEF0F4',
         flexShrink: 0,
-        height: 60,
         display: 'flex',
         alignItems: 'center',
       }}>
@@ -129,8 +128,8 @@ export function Nav() {
             }}>G</span>
           </div>
           <span style={{
-            fontSize: 16,
-            fontWeight: 600,
+            fontSize: 15,
+            fontWeight: 700,
             color: '#111827',
             letterSpacing: '-0.02em',
             fontFamily: 'var(--font-sans)',
@@ -177,10 +176,10 @@ export function Nav() {
         justifyContent: 'space-between',
       }}>
         <span style={{
-          fontSize: 11,
+          fontSize: 12,
           fontFamily: 'var(--font-mono)',
-          color: '#9CA3AF',
-          letterSpacing: '0.04em',
+          color: '#6B7280',
+          letterSpacing: '0.02em',
         }}>genesis v0.1</span>
         <span style={{
           width: 6, height: 6, borderRadius: '50%',
