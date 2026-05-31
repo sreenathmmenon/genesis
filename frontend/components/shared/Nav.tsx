@@ -101,10 +101,10 @@ export function Nav() {
     <nav className="nav-sidebar">
       {/* Logo */}
       <div style={{
-        padding: '14px 16px',
+        padding: '18px 16px',
         borderBottom: '1px solid #E5E7EB',
         flexShrink: 0,
-        height: 48,
+        height: 60,
         display: 'flex',
         alignItems: 'center',
       }}>
@@ -147,7 +147,7 @@ export function Nav() {
       </div>
 
       {/* Nav items */}
-      <div style={{ flex: 1, paddingTop: 8, paddingBottom: 8 }}>
+      <div style={{ flex: 1, paddingTop: 12, paddingBottom: 12 }}>
         {NAV_ITEMS.map((item) => (
           <Link
             key={item.href}
@@ -169,7 +169,7 @@ export function Nav() {
 
       {/* Bottom */}
       <div style={{
-        padding: '10px 16px',
+        padding: '14px 16px',
         borderTop: '1px solid #E5E7EB',
         flexShrink: 0,
         display: 'flex',
