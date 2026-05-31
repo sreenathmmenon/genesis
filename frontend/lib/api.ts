@@ -32,7 +32,7 @@ export const api = {
   // ── Agents ─────────────────────────────────────────────────────────────────
   getAgents: (workflowId?: string) =>
     fetch(
-      `${API_BASE}/api/v1/agents/${workflowId ? `?workflow_id=${workflowId}` : ''}`
+      `${API_BASE}/api/v1/agents${workflowId ? `?workflow_id=${workflowId}` : ''}`
     ).then(json),
 
   updateAgent: (id: string, data: Partial<Agent>) =>
@@ -44,7 +44,7 @@ export const api = {
 
   // ── Workflows ──────────────────────────────────────────────────────────────
   getWorkflows: () =>
-    fetch(`${API_BASE}/api/v1/workflows/`).then(json),
+    fetch(`${API_BASE}/api/v1/workflows`).then(json),
 
   getWorkflow: (id: string) =>
     fetch(`${API_BASE}/api/v1/workflows/${id}`).then(json),
@@ -63,7 +63,7 @@ export const api = {
     if (params?.offset != null) qs.set('offset', String(params.offset))
     if (params?.limit != null) qs.set('limit', String(params.limit))
     const q = qs.toString()
-    return fetch(`${API_BASE}/api/v1/runs/${q ? `?${q}` : ''}`).then(json)
+    return fetch(`${API_BASE}/api/v1/runs${q ? `?${q}` : ''}`).then(json)
   },
 
   getRun: (runId: string) =>
@@ -83,7 +83,7 @@ export const api = {
 
   // ── Templates ──────────────────────────────────────────────────────────────
   getTemplates: () =>
-    fetch(`${API_BASE}/api/v1/templates/`).then(json),
+    fetch(`${API_BASE}/api/v1/templates`).then(json),
 
   deployTemplate: (name: string) =>
     fetch(`${API_BASE}/api/v1/templates/${name}/deploy`, { method: 'POST' }).then(json),
@@ -107,7 +107,7 @@ export const api = {
 
   // ── Workflow-scoped runs ───────────────────────────────────────────────────
   getWorkflowRuns: (workflowId: string) =>
-    fetch(`${API_BASE}/api/v1/runs/?workflow_id=${workflowId}`).then(json),
+    fetch(`${API_BASE}/api/v1/runs?workflow_id=${workflowId}`).then(json),
 
   // ── Tool names ─────────────────────────────────────────────────────────────
   getToolNames: () =>
@@ -122,7 +122,7 @@ export const api = {
     if (params?.limit) qs.set('limit', String(params.limit))
     if (params?.offset) qs.set('offset', String(params.offset))
     const q = qs.toString()
-    return fetch(`${API_BASE}/api/v1/audit/${q ? `?${q}` : ''}`).then(json)
+    return fetch(`${API_BASE}/api/v1/audit${q ? `?${q}` : ''}`).then(json)
   },
 
   getAuditEventTypes: () =>
