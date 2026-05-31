@@ -1,9 +1,9 @@
 import sys
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from genesis.config import settings
 from genesis.database import init_db
@@ -45,9 +45,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS origins — allow the Railway-deployed frontend and local dev
+_CORS_ORIGINS = [
+    "https://genesis-ai.up.railway.app",
+    "http://localhost:3000",
+    "http://localhost:3001",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if settings.environment == "development" else ["http://localhost:3000"],
+    allow_origins=_CORS_ORIGINS if settings.environment != "development" else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
