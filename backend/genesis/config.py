@@ -80,6 +80,7 @@ class Settings(BaseSettings):
     secret_key: str = "change_this_to_random_32_char_string"
     environment: str = "development"
     log_level: str = "INFO"
+    frontend_url: str = "https://genesis-ai.up.railway.app"
 
     # Repair Agent
     repair_model: str = "claude-haiku-4-5-20251001"
