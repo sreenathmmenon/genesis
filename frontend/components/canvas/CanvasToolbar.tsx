@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { Button, Label, StatusDot } from '@/components/ui'
 import { useGenesisStore } from '@/lib/store'
 import { useWebSocket } from '@/lib/websocket'
@@ -42,9 +43,9 @@ export function CanvasToolbar({ workflowName, onNewBuild }: CanvasToolbarProps) 
     <div className="layout-toolbar">
 
       {/* Brand */}
-      <span style={{ fontWeight: 700, fontSize: 15, color: '#111827', letterSpacing: '-0.02em', flexShrink: 0 }}>
+      <Link href="/" style={{ fontWeight: 700, fontSize: 15, color: '#111827', letterSpacing: '-0.02em', flexShrink: 0, textDecoration: 'none' }}>
         Genesis
-      </span>
+      </Link>
 
       <div style={{ width: 1, height: 16, background: '#E5E7EB', flexShrink: 0 }} />
 
