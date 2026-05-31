@@ -1,6 +1,10 @@
 import type { Agent } from './types'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8001'
+// Use relative /api path so the Next.js server-side rewrite proxies requests
+// to the backend. This avoids baking the backend URL into the client bundle
+// at build time — Railway's BACKEND_URL env var is used by the Next.js server
+// at runtime to resolve the rewrite destination.
+const API_BASE = ''
 
 const json = (res: Response) => {
   if (!res.ok) throw new Error(`API ${res.status}: ${res.url}`)
