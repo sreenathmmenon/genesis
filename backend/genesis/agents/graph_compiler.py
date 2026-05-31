@@ -11,7 +11,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from genesis.agents.state import GenesisState, WorkflowState
 from genesis.config import settings
 from genesis.utils.logger import get_logger
-from genesis.utils.model_router import get_llm
+from genesis.utils.model_router import ainvoke_with_fallback, get_llm
 
 logger = get_logger("genesis.graph_compiler")
 
@@ -220,8 +220,16 @@ async def compile_workflow_from_json(
 
             for _round in range(max_rounds):
                 try:
-                    lm_to_use = first_round_lm if (_round == 0 and tools) else bound_lm
-                    response = await lm_to_use.ainvoke(messages)
+                    _is_first = (_round == 0 and bool(tools))
+                    lm_to_use = first_round_lm if _is_first else bound_lm
+                    response = await ainvoke_with_fallback(
+                        lm_to_use,
+                        messages,
+                        model_name,
+                        _max_tokens,
+                        tools=tools if tools else None,
+                        tool_choice="any" if _is_first else None,
+                    )
                     logger.debug("Node [%s] round %d — guardrails: max_tokens=%d max_iterations=%d", node_id, _round, _max_tokens, _max_iterations)
                 except Exception as exc:
                     logger.error("Node [%s] LLM invoke failed (round %d): %s", node_id, _round, exc)
@@ -284,7 +292,9 @@ async def compile_workflow_from_json(
                 try:
                     synthesis_prompt = "Based on all the research and tool results above, write your final conclusion and summary. Do NOT call any more tools."
                     messages.append(HumanMessage(content=synthesis_prompt))
-                    final_response = await enforced_lm.ainvoke(messages)
+                    final_response = await ainvoke_with_fallback(
+                        enforced_lm, messages, model_name, _max_tokens, tools=None
+                    )
                     conclusion = str(final_response.content)
                     results[node_id] = conclusion
                     if db_writer is not None:

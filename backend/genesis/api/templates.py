@@ -121,9 +121,75 @@ TEMPLATES: list[dict[str, Any]] = [
         "description": "Every morning, pull updates from GitHub, Jira, and Slack, then generate and send a team standup summary to your channel.",
         "intent": "Every weekday at 9am, collect yesterday's merged PRs, closed tickets, and Slack highlights, then send a standup digest to our team channel.",
         "agent_count": 4,
-        "agents": ["GitHub Collector", "Jira Collector", "Slack Collector", "Digest Writer"],
-        "graph_json": None,
+        "agents": ["GitHub Collector", "Jira Collector", "Digest Writer", "Telegram Sender"],
         "schedule": "0 9 * * 1-5",
+        "graph_json": {
+            "nodes": [
+                {
+                    "id": "github_collector",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are GitHub Collector for a daily standup digest. "
+                        "Use web_search to find recent GitHub activity: search for terms like "
+                        "'site:github.com merged pull request yesterday' or use the github_api tool "
+                        "if configured. Collect: merged PRs from yesterday, opened issues, and "
+                        "any deployments or releases. Return a structured summary of engineering activity."
+                    ),
+                    "tools": ["web_search", "github_api"],
+                    "memory_type": "none",
+                    "schedule": "0 9 * * 1-5",
+                },
+                {
+                    "id": "activity_collector",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are Activity Collector for a daily standup. "
+                        "Search for team activity signals: use web_search to find recent "
+                        "project updates, deployment announcements, or technical blog posts "
+                        "from the team. Also check for any scheduled tasks or reminders for today. "
+                        "Compile all activity into a structured daily summary."
+                    ),
+                    "tools": ["web_search"],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+                {
+                    "id": "digest_writer",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are Digest Writer. Given activity from GitHub and other sources, "
+                        "write a clear daily standup digest in this format:\n\n"
+                        "## Daily Standup — [Today's Date]\n\n"
+                        "### What Got Done Yesterday\n[bullet points of merged PRs, closed tickets, deployments]\n\n"
+                        "### In Progress\n[what's currently being worked on]\n\n"
+                        "### Blockers & Needs Review\n[PRs waiting for review, open issues that need attention]\n\n"
+                        "### Today's Focus\n[1-3 priorities for the day]\n\n"
+                        "Keep it concise — under 300 words total. This goes straight to the team."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+                {
+                    "id": "telegram_sender",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are Telegram Sender. Your context contains the complete standup digest. "
+                        "Send it immediately using telegram_send. "
+                        "Use the digest content exactly as provided — do not summarize or change it. "
+                        "You MUST call telegram_send now."
+                    ),
+                    "tools": ["telegram_send"],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+            ],
+            "edges": [
+                {"source": "github_collector", "target": "activity_collector", "condition": "always"},
+                {"source": "activity_collector", "target": "digest_writer", "condition": "always"},
+                {"source": "digest_writer", "target": "telegram_sender", "condition": "always"},
+            ],
+        },
     },
     {
         "name": "lead-enrichment-bot",
@@ -133,8 +199,63 @@ TEMPLATES: list[dict[str, Any]] = [
         "intent": "When a new lead is added to our CRM, search the web for their company info, LinkedIn profile, and recent news, then add a research summary and lead score to the CRM record.",
         "agent_count": 3,
         "agents": ["CRM Watcher", "Research Agent", "Lead Scorer"],
-        "graph_json": None,
         "schedule": None,
+        "graph_json": {
+            "nodes": [
+                {
+                    "id": "crm_watcher",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are CRM Watcher. Your task is to identify the lead or company to research. "
+                        "Extract the company name, contact name, or domain from your input context. "
+                        "If no specific lead is provided, use a sample technology startup as a demo: "
+                        "Company: 'Acme SaaS Corp', Contact: 'Jane Smith', Domain: 'acmesaas.io'. "
+                        "Return the structured lead information: company_name, contact_name, domain, industry."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+                {
+                    "id": "research_agent",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are Research Agent. Given a lead's company name and domain, "
+                        "use web_search to research: "
+                        "(1) company overview — what they do, size, funding, founding year, "
+                        "(2) recent news — last 3 months, "
+                        "(3) tech stack signals from job postings or blog, "
+                        "(4) key decision makers on LinkedIn. "
+                        "Run 3-4 searches and compile all findings."
+                    ),
+                    "tools": ["web_search", "fetch_page"],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+                {
+                    "id": "lead_scorer",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are Lead Scorer. Given research on a company, produce a lead enrichment report:\n\n"
+                        "## Lead Report: [Company Name]\n\n"
+                        "**Lead Score: [1-10]** — [one sentence rationale]\n\n"
+                        "### Company Profile\n[3-4 sentences: what they do, size, stage]\n\n"
+                        "### Fit Assessment\n[Why this lead is or isn't a good fit]\n\n"
+                        "### Key Signals\n[bullet points: funding, growth, pain points, tech signals]\n\n"
+                        "### Recommended Approach\n[2-3 sentences: how to reach out, key talking point]\n\n"
+                        "### Contact Strategy\n[Best channel, timing, opener suggestion]\n\n"
+                        "Be specific and actionable. Sales reps use this directly."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+            ],
+            "edges": [
+                {"source": "crm_watcher", "target": "research_agent", "condition": "always"},
+                {"source": "research_agent", "target": "lead_scorer", "condition": "always"},
+            ],
+        },
     },
     {
         "name": "infra-cost-watchdog",
@@ -144,8 +265,70 @@ TEMPLATES: list[dict[str, Any]] = [
         "intent": "Every day at 8am check our cloud spending. If daily cost exceeds $500 or grows more than 20% day-over-day, send an alert with the top 3 cost drivers to our Slack channel.",
         "agent_count": 3,
         "agents": ["Cost Fetcher", "Anomaly Detector", "Alert Sender"],
-        "graph_json": None,
         "schedule": "0 8 * * *",
+        "graph_json": {
+            "nodes": [
+                {
+                    "id": "cost_fetcher",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are Cost Fetcher for cloud infrastructure monitoring. "
+                        "Try to fetch cost data using http_request to AWS Cost Explorer API "
+                        "or GCP Billing API if credentials are configured. "
+                        "If no cloud credentials are available, use web_search to find "
+                        "current AWS/GCP pricing benchmarks and estimate costs for a typical "
+                        "medium-sized startup infrastructure (3 EC2 instances, RDS, S3, CDN). "
+                        "Return: today's estimated cost, yesterday's cost, top 3 services by cost."
+                    ),
+                    "tools": ["http_request", "web_search"],
+                    "memory_type": "none",
+                    "schedule": "0 8 * * *",
+                },
+                {
+                    "id": "anomaly_detector",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are Anomaly Detector. Given cost data from the previous agent: "
+                        "(1) Calculate day-over-day percentage change "
+                        "(2) Check if cost exceeds $500/day threshold "
+                        "(3) Check if growth rate exceeds 20% "
+                        "(4) Identify top 3 cost drivers "
+                        "(5) Determine alert level: CRITICAL (>$1000 or >50% spike), "
+                        "WARNING ($500-1000 or 20-50% spike), OK (within normal range). "
+                        "Return structured assessment with alert_level, cost_today, cost_yesterday, "
+                        "pct_change, top_drivers, and recommendation."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+                {
+                    "id": "report_writer",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are Report Writer for infrastructure cost monitoring. "
+                        "Write a clear cost report based on the anomaly analysis:\n\n"
+                        "## Infrastructure Cost Report — [Date]\n\n"
+                        "**Status: [CRITICAL/WARNING/OK]**\n\n"
+                        "### Cost Summary\n"
+                        "- Today: $[amount]\n"
+                        "- Yesterday: $[amount]\n"
+                        "- Change: [+/-X%]\n\n"
+                        "### Top Cost Drivers\n[bullet list of top 3]\n\n"
+                        "### Assessment\n[2-3 sentences on what's driving costs]\n\n"
+                        "### Recommended Actions\n[2-3 specific actions to take]\n\n"
+                        "If all is within normal range, say so clearly and briefly."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+            ],
+            "edges": [
+                {"source": "cost_fetcher", "target": "anomaly_detector", "condition": "always"},
+                {"source": "anomaly_detector", "target": "report_writer", "condition": "always"},
+            ],
+        },
     },
     {
         "name": "changelog-reporter",
@@ -154,9 +337,70 @@ TEMPLATES: list[dict[str, Any]] = [
         "description": "Every Friday, collect all merged PRs from your repos, group them by type, and publish a formatted changelog to Notion or your docs site.",
         "intent": "Every Friday at 5pm, collect all GitHub PRs merged this week, categorize them as features, fixes, or refactors, and post a formatted changelog to our Notion workspace.",
         "agent_count": 3,
-        "agents": ["PR Collector", "Categorizer", "Notion Publisher"],
-        "graph_json": None,
+        "agents": ["PR Collector", "Categorizer", "Report Writer"],
         "schedule": "0 17 * * 5",
+        "graph_json": {
+            "nodes": [
+                {
+                    "id": "pr_collector",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are PR Collector for weekly changelog generation. "
+                        "Use github_api to list pull requests merged this week. "
+                        "If github_api is not configured, use web_search to find recent "
+                        "open source project changelogs as examples. "
+                        "Collect: PR title, author, merge date, and a brief description of changes. "
+                        "Target: 10-20 PRs from the current week."
+                    ),
+                    "tools": ["github_api", "web_search"],
+                    "memory_type": "none",
+                    "schedule": "0 17 * * 5",
+                },
+                {
+                    "id": "categorizer",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are Categorizer. Given a list of merged PRs, categorize each one as:\n"
+                        "- **feat**: New feature or significant enhancement\n"
+                        "- **fix**: Bug fix or error correction\n"
+                        "- **refactor**: Code improvement without changing behavior\n"
+                        "- **perf**: Performance improvement\n"
+                        "- **docs**: Documentation updates\n"
+                        "- **chore**: Dependencies, CI, tooling\n"
+                        "- **breaking**: Breaking change (flag these prominently)\n\n"
+                        "Return a categorized list with PR number, category, title, and 1-line description."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+                {
+                    "id": "report_writer",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are Report Writer for the weekly changelog. "
+                        "Write a formatted changelog in Keep a Changelog format:\n\n"
+                        "# Changelog — Week of [Date]\n\n"
+                        "## [Version or Date]\n\n"
+                        "### Breaking Changes\n[List any breaking changes with migration notes]\n\n"
+                        "### New Features\n[List new features]\n\n"
+                        "### Bug Fixes\n[List bug fixes]\n\n"
+                        "### Improvements\n[Refactors, perf, etc]\n\n"
+                        "### Maintenance\n[Chore, docs, CI]\n\n"
+                        "### Contributors\n[List authors who contributed this week]\n\n"
+                        "Keep descriptions concise — one line per PR. "
+                        "Link to PR numbers where possible."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+            ],
+            "edges": [
+                {"source": "pr_collector", "target": "categorizer", "condition": "always"},
+                {"source": "categorizer", "target": "report_writer", "condition": "always"},
+            ],
+        },
     },
     {
         "name": "support-triage-agent",
@@ -166,8 +410,95 @@ TEMPLATES: list[dict[str, Any]] = [
         "intent": "Watch our support inbox. Classify each ticket as critical, high, medium, or low. Auto-reply to FAQs, create Jira tickets for bugs, and page on-call for critical issues.",
         "agent_count": 4,
         "agents": ["Inbox Watcher", "Classifier", "Auto Responder", "Escalation Agent"],
-        "graph_json": None,
         "schedule": None,
+        "graph_json": {
+            "nodes": [
+                {
+                    "id": "inbox_watcher",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are Inbox Watcher for a support triage system. "
+                        "Your task is to process the incoming support ticket or request. "
+                        "Extract from your input context: the ticket subject/title, "
+                        "the user's message or complaint, and any relevant metadata. "
+                        "If no specific ticket is provided in context, create a realistic demo ticket: "
+                        "Subject: 'Unable to export data to CSV', "
+                        "User: 'When I click Export in the Reports section, I get a blank file. "
+                        "This started happening 2 days ago. I need this for a presentation tomorrow. "
+                        "Please fix ASAP.' "
+                        "Return: ticket_id (generate one), subject, message, user_email (demo if needed), timestamp."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+                {
+                    "id": "classifier",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are Classifier for support ticket triage. "
+                        "Given a support ticket, classify it on these dimensions:\n\n"
+                        "**Urgency**: critical (system down, data loss), high (key feature broken), "
+                        "medium (degraded functionality), low (minor issue, feature request)\n\n"
+                        "**Category**: bug, feature_request, billing, account, how_to, performance, security\n\n"
+                        "**Auto-reply eligible**: true if it's a common FAQ that can be auto-answered\n\n"
+                        "**Needs escalation**: true if critical or security issue\n\n"
+                        "Return structured classification with urgency, category, auto_reply_eligible, "
+                        "needs_escalation, and brief_rationale."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+                {
+                    "id": "auto_responder",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are Auto Responder for support tickets. "
+                        "Given the ticket and its classification, write a professional response email.\n\n"
+                        "For HIGH/CRITICAL urgency: Acknowledge immediately, express urgency, give ETA.\n"
+                        "For MEDIUM: Professional response with next steps and expected resolution time.\n"
+                        "For LOW/FAQ: Direct answer to their question, point to docs if relevant.\n\n"
+                        "Response format:\n"
+                        "Subject: Re: [Original Subject]\n\n"
+                        "Hi [Name],\n\n[Response body]\n\n"
+                        "Best regards,\nSupport Team\n\n"
+                        "Keep it under 150 words. Be empathetic and specific."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+                {
+                    "id": "triage_report",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are Triage Report Writer. Compile the complete support triage result:\n\n"
+                        "## Support Ticket Triage Report\n\n"
+                        "### Ticket Summary\n"
+                        "- **ID**: [ticket_id]\n"
+                        "- **Subject**: [subject]\n"
+                        "- **Urgency**: [CRITICAL/HIGH/MEDIUM/LOW]\n"
+                        "- **Category**: [category]\n"
+                        "- **Auto-reply sent**: [yes/no]\n"
+                        "- **Escalation needed**: [yes/no]\n\n"
+                        "### Classification Rationale\n[2-3 sentences explaining the classification]\n\n"
+                        "### Drafted Response\n[The auto-response that was/will be sent]\n\n"
+                        "### Recommended Actions\n"
+                        "[Bullet list of next steps: who should handle it, timeline, any Jira ticket to create]\n\n"
+                        "This report is shown in the Genesis dashboard."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+            ],
+            "edges": [
+                {"source": "inbox_watcher", "target": "classifier", "condition": "always"},
+                {"source": "classifier", "target": "auto_responder", "condition": "always"},
+                {"source": "auto_responder", "target": "triage_report", "condition": "always"},
+            ],
+        },
     },
     {
         "name": "competitor-monitor",
@@ -177,8 +508,84 @@ TEMPLATES: list[dict[str, Any]] = [
         "intent": "Every Monday morning, scan my top 5 competitors' websites, pricing pages, and job boards for changes. Summarize the 3 most important competitive signals of the week.",
         "agent_count": 4,
         "agents": ["Web Scraper", "Change Detector", "Signal Analyst", "Report Writer"],
-        "graph_json": None,
         "schedule": "0 8 * * 1",
+        "graph_json": {
+            "nodes": [
+                {
+                    "id": "web_scraper",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are Web Scraper for competitor monitoring. "
+                        "Use web_search and fetch_page to gather intelligence on the top 3-5 competitors "
+                        "in the workflow automation / AI agent space "
+                        "(e.g. Zapier, Make.com, n8n, Activepieces, Relay.app). "
+                        "For each competitor, search for: recent product updates or changelog, "
+                        "pricing page changes, new job postings, and press mentions from the last week. "
+                        "Run 5-7 targeted searches and compile raw findings with source URLs."
+                    ),
+                    "tools": ["web_search", "fetch_page"],
+                    "memory_type": "none",
+                    "schedule": "0 8 * * 1",
+                },
+                {
+                    "id": "change_detector",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are Change Detector. Given raw competitor intelligence data, "
+                        "identify specific changes and new developments: "
+                        "(1) New product features or improvements launched this week "
+                        "(2) Pricing changes — increases, decreases, new tiers "
+                        "(3) Strategic hires or team changes "
+                        "(4) Partnership announcements or integrations "
+                        "(5) Marketing or positioning shifts "
+                        "Be specific — cite the competitor name and what exactly changed."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+                {
+                    "id": "signal_analyst",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are Signal Analyst. Given detected competitor changes, "
+                        "analyze the strategic implications: "
+                        "(1) What does each change signal about their strategy? "
+                        "(2) Which changes pose a threat to us? "
+                        "(3) Which changes reveal a gap we can exploit? "
+                        "(4) What should we do differently based on this intelligence? "
+                        "Rank the 3 most important signals by urgency and impact."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+                {
+                    "id": "report_writer",
+                    "model_name": "claude-sonnet-4-6",
+                    "system_prompt": (
+                        "You are Report Writer for competitive intelligence. "
+                        "Write a concise weekly competitor brief:\n\n"
+                        "## Competitor Intelligence Brief — Week of [Date]\n\n"
+                        "### Top 3 Signals This Week\n\n"
+                        "**Signal 1: [Title]**\nCompetitor: [name] | Impact: HIGH/MEDIUM/LOW\n"
+                        "What: [what changed]\nWhy it matters: [1-2 sentences]\nOur response: [action]\n\n"
+                        "[Repeat for Signal 2 and 3]\n\n"
+                        "### This Week's Activity Summary\n[3-4 bullet points of notable competitor activity]\n\n"
+                        "### Watch List\n[2-3 things to monitor closely next week]\n\n"
+                        "Be direct and actionable. Skip fluff."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+            ],
+            "edges": [
+                {"source": "web_scraper", "target": "change_detector", "condition": "always"},
+                {"source": "change_detector", "target": "signal_analyst", "condition": "always"},
+                {"source": "signal_analyst", "target": "report_writer", "condition": "always"},
+            ],
+        },
     },
     {
         "name": "signal_scout",
