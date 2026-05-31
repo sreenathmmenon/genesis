@@ -672,6 +672,237 @@ def _extract_meeting_link(event: dict) -> str:
     return match.group(0) if match else ""
 
 
+# ── sheets_read ────────────────────────────────────────────────────────────────
+
+@tool
+async def sheets_read(
+    spreadsheet_id: str,
+    sheet_name: str = "Sheet1",
+    range_notation: str = "",
+    max_rows: int = 100,
+) -> str:
+    """Read data from a Google Sheet. Requires GOOGLE_SHEETS_CREDENTIALS_JSON in environment.
+    spreadsheet_id: the ID from the sheet URL (between /d/ and /edit).
+    sheet_name: tab name (default 'Sheet1').
+    range_notation: A1 notation like 'A1:D20' — if empty, reads the whole sheet up to max_rows.
+    Returns rows as a list of lists (first row is usually the header)."""
+    try:
+        import asyncio
+
+        if not settings.google_sheets_credentials_json:
+            return json.dumps({"error": "GOOGLE_SHEETS_CREDENTIALS_JSON not configured. Add Google service account credentials."})
+
+        def _fetch():
+            import json as _json
+            from google.oauth2.service_account import Credentials
+            from googleapiclient.discovery import build
+
+            creds_data = _json.loads(settings.google_sheets_credentials_json)
+            creds = Credentials.from_service_account_info(
+                creds_data,
+                scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"],
+            )
+            service = build("sheets", "v4", credentials=creds)
+
+            cell_range = range_notation or f"{sheet_name}!A1:ZZ{max_rows}"
+            if range_notation and "!" not in range_notation:
+                cell_range = f"{sheet_name}!{range_notation}"
+
+            result = service.spreadsheets().values().get(
+                spreadsheetId=spreadsheet_id,
+                range=cell_range,
+            ).execute()
+
+            rows = result.get("values", [])
+            return {
+                "spreadsheet_id": spreadsheet_id,
+                "sheet": sheet_name,
+                "range": cell_range,
+                "row_count": len(rows),
+                "rows": rows[:max_rows],
+            }
+
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, _fetch)
+        return json.dumps(result, indent=2)
+
+    except Exception as exc:
+        logger.warning("sheets_read failed: %s", exc)
+        return json.dumps({"error": str(exc)})
+
+
+@tool
+async def sheets_write(
+    spreadsheet_id: str,
+    values: list[list[str]],
+    sheet_name: str = "Sheet1",
+    start_cell: str = "A1",
+) -> str:
+    """Append or write rows to a Google Sheet. Requires GOOGLE_SHEETS_CREDENTIALS_JSON (service account with editor access).
+    spreadsheet_id: the ID from the sheet URL.
+    values: list of rows, each row is a list of cell values (strings).
+    sheet_name: tab name (default 'Sheet1').
+    start_cell: top-left cell of the write range (default 'A1').
+    This overwrites existing data in the range. To append, set start_cell to the first empty row."""
+    try:
+        import asyncio
+
+        if not settings.google_sheets_credentials_json:
+            return json.dumps({"error": "GOOGLE_SHEETS_CREDENTIALS_JSON not configured."})
+
+        def _write():
+            import json as _json
+            from google.oauth2.service_account import Credentials
+            from googleapiclient.discovery import build
+
+            creds_data = _json.loads(settings.google_sheets_credentials_json)
+            creds = Credentials.from_service_account_info(
+                creds_data,
+                scopes=["https://www.googleapis.com/auth/spreadsheets"],
+            )
+            service = build("sheets", "v4", credentials=creds)
+
+            cell_range = f"{sheet_name}!{start_cell}"
+            body = {"values": values}
+            result = service.spreadsheets().values().update(
+                spreadsheetId=spreadsheet_id,
+                range=cell_range,
+                valueInputOption="USER_ENTERED",
+                body=body,
+            ).execute()
+
+            return {
+                "ok": True,
+                "updated_range": result.get("updatedRange"),
+                "updated_rows": result.get("updatedRows"),
+                "updated_cells": result.get("updatedCells"),
+            }
+
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, _write)
+        return json.dumps(result, indent=2)
+
+    except Exception as exc:
+        logger.warning("sheets_write failed: %s", exc)
+        return json.dumps({"error": str(exc)})
+
+
+# ── whatsapp_send ──────────────────────────────────────────────────────────────
+
+@tool
+async def whatsapp_send(
+    to: str,
+    message: str,
+    media_url: str = "",
+) -> str:
+    """Send a WhatsApp message via Twilio WhatsApp API.
+    Requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM in environment.
+    to: recipient phone number in E.164 format (e.g. '+919876543210').
+    message: text message to send (max 1600 chars for WhatsApp).
+    media_url: optional public URL to an image or document to attach."""
+    try:
+        import asyncio
+
+        if not settings.twilio_account_sid or not settings.twilio_auth_token:
+            return json.dumps({"error": "TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN not configured."})
+        if not settings.twilio_whatsapp_from:
+            return json.dumps({"error": "TWILIO_WHATSAPP_FROM not configured (format: whatsapp:+1415xxxxxxx)."})
+
+        from_number = settings.twilio_whatsapp_from
+        if not from_number.startswith("whatsapp:"):
+            from_number = f"whatsapp:{from_number}"
+        to_number = to if to.startswith("whatsapp:") else f"whatsapp:{to}"
+
+        def _send():
+            from twilio.rest import Client
+            client = Client(settings.twilio_account_sid, settings.twilio_auth_token)
+            kwargs: dict[str, Any] = {
+                "from_": from_number,
+                "to": to_number,
+                "body": message[:1600],
+            }
+            if media_url:
+                kwargs["media_url"] = [media_url]
+            msg = client.messages.create(**kwargs)
+            return {"ok": True, "sid": msg.sid, "status": msg.status}
+
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, _send)
+        logger.info("whatsapp_send succeeded: to=%s", to)
+        return json.dumps(result)
+
+    except Exception as exc:
+        logger.warning("whatsapp_send failed: %s", exc)
+        return json.dumps({"error": str(exc)})
+
+
+# ── sms_send ───────────────────────────────────────────────────────────────────
+
+@tool
+async def sms_send(to: str, message: str) -> str:
+    """Send an SMS via Twilio. Requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_SMS_FROM in environment.
+    to: recipient phone number in E.164 format (e.g. '+919876543210').
+    message: SMS text (max 1600 chars, split into multiple SMSes automatically by Twilio)."""
+    try:
+        import asyncio
+
+        if not settings.twilio_account_sid or not settings.twilio_auth_token:
+            return json.dumps({"error": "TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN not configured."})
+        if not settings.twilio_sms_from:
+            return json.dumps({"error": "TWILIO_SMS_FROM not configured."})
+
+        def _send():
+            from twilio.rest import Client
+            client = Client(settings.twilio_account_sid, settings.twilio_auth_token)
+            msg = client.messages.create(
+                from_=settings.twilio_sms_from,
+                to=to,
+                body=message[:1600],
+            )
+            return {"ok": True, "sid": msg.sid, "status": msg.status}
+
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, _send)
+        logger.info("sms_send succeeded: to=%s", to)
+        return json.dumps(result)
+
+    except Exception as exc:
+        logger.warning("sms_send failed: %s", exc)
+        return json.dumps({"error": str(exc)})
+
+
+# ── webhook_send ───────────────────────────────────────────────────────────────
+
+@tool
+async def webhook_send(url: str, payload: dict, secret: str = "") -> str:
+    """POST structured JSON data to any webhook URL.
+    Useful for triggering Zapier, Make (Integromat), n8n, or any custom webhook.
+    url: the webhook endpoint URL.
+    payload: JSON data to send.
+    secret: optional — if set, adds X-Genesis-Signature header (HMAC-SHA256 of the payload)."""
+    import httpx
+    import hmac
+    import hashlib
+
+    try:
+        headers = {"Content-Type": "application/json", "X-Genesis-Source": "genesis-agent"}
+        if secret:
+            body_bytes = json.dumps(payload).encode()
+            sig = hmac.new(secret.encode(), body_bytes, hashlib.sha256).hexdigest()
+            headers["X-Genesis-Signature"] = sig
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(url, json=payload, headers=headers)
+            resp.raise_for_status()
+
+        logger.info("webhook_send succeeded: url=%s status=%d", url, resp.status_code)
+        return json.dumps({"ok": True, "status": resp.status_code})
+
+    except Exception as exc:
+        logger.warning("webhook_send failed: %s", exc)
+        return json.dumps({"error": str(exc)})
+
+
 # ── scheduler ─────────────────────────────────────────────────────────────────
 
 @tool
@@ -702,18 +933,23 @@ _TOOL_MAP: dict[str, Any] = {
     "telegram_send": telegram_send,
     "slack_send": slack_send,
     "email_send": email_send,
+    "whatsapp_send": whatsapp_send,
+    "sms_send": sms_send,
+    "webhook_send": webhook_send,
     # Developer Tools
     "github_api": github_api,
     "jira_api": jira_api,
     # Productivity
     "notion_read": notion_read,
     "calendar_read": calendar_read,
+    "sheets_read": sheets_read,
+    "sheets_write": sheets_write,
     # Automation
     "scheduler": scheduler,
 }
 
 # Tools that produce side-effects as their final action — stop ReAct loop after these
-TERMINAL_TOOLS: set[str] = {"telegram_send", "slack_send", "email_send", "scheduler"}
+TERMINAL_TOOLS: set[str] = {"telegram_send", "slack_send", "email_send", "whatsapp_send", "sms_send", "webhook_send", "scheduler"}
 
 # Human-readable tool catalogue (used by /api/v1/tools and builder prompt)
 TOOL_CATALOGUE: list[dict[str, Any]] = [
@@ -807,6 +1043,41 @@ TOOL_CATALOGUE: list[dict[str, Any]] = [
         "description": "Read upcoming events from Google Calendar.",
         "use_when": "Meeting prep, scheduling context, finding upcoming deadlines",
         "parameters": {"days_ahead": "int (default 7)", "calendar_id": "str (default 'primary')", "max_results": "int"},
+    },
+    {
+        "name": "whatsapp_send",
+        "category": "messaging",
+        "description": "Send a WhatsApp message via Twilio. Supports text and media attachments.",
+        "use_when": "Sending results or alerts to a WhatsApp number — great for non-tech users who live on WhatsApp",
+        "parameters": {"to": "str (E.164 phone, e.g. '+919876543210')", "message": "str", "media_url": "str (optional)"},
+    },
+    {
+        "name": "sms_send",
+        "category": "messaging",
+        "description": "Send an SMS via Twilio to any phone number.",
+        "use_when": "Sending short alerts or summaries via text message to any mobile",
+        "parameters": {"to": "str (E.164 phone)", "message": "str"},
+    },
+    {
+        "name": "webhook_send",
+        "category": "automation",
+        "description": "POST JSON data to any webhook URL — triggers Zapier, Make, n8n, or custom endpoints.",
+        "use_when": "Connecting to Zapier, Make, n8n, or any service that accepts webhooks",
+        "parameters": {"url": "str", "payload": "dict (JSON data)", "secret": "str (optional HMAC secret)"},
+    },
+    {
+        "name": "sheets_read",
+        "category": "productivity",
+        "description": "Read data from a Google Sheet. Returns rows as a list.",
+        "use_when": "Reading tracking spreadsheets, CRM data, inventory lists, any data stored in Google Sheets",
+        "parameters": {"spreadsheet_id": "str", "sheet_name": "str (default 'Sheet1')", "range_notation": "str (e.g. 'A1:D50')", "max_rows": "int"},
+    },
+    {
+        "name": "sheets_write",
+        "category": "productivity",
+        "description": "Write or update rows in a Google Sheet.",
+        "use_when": "Logging results back to a spreadsheet, updating a tracker, appending new data rows",
+        "parameters": {"spreadsheet_id": "str", "values": "list[list[str]] (rows of cells)", "sheet_name": "str", "start_cell": "str (e.g. 'A1')"},
     },
     {
         "name": "scheduler",

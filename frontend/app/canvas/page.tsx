@@ -14,10 +14,10 @@ import type { Workflow } from '@/lib/types'
 import type { Node, Edge } from '@xyflow/react'
 
 const STARTER_PROMPTS = [
-  'Monitor our GitHub PRs and flag any that change an API endpoint without updating the docs',
-  "Every weekday morning, summarize what my team shipped yesterday and what's blocked",
-  'Watch our AWS costs and alert me if any service spikes more than 20% day-over-day',
-  'When a new lead fills our Typeform, research their company and score them before we respond',
+  'Every morning, research the top 5 news stories in my industry, write a 3-sentence brief for each, and save them to my results dashboard',
+  'When I give you a company name, research their products, pricing, recent news, and key people — then write a detailed competitive analysis',
+  'Every week, find 10 trending topics in AI startups, score each by relevance to B2B SaaS, and give me a ranked list with 1-line summaries',
+  'Research the best coffee shops in Bangalore with free WiFi and quiet seating, then rank them by distance from Koramangala and write a comparison',
 ]
 
 function InlineIntentPanel({ onSubmitted }: { onSubmitted: () => void }) {
@@ -34,8 +34,8 @@ function InlineIntentPanel({ onSubmitted }: { onSubmitted: () => void }) {
     if (intent.trim().length < 10) { setError('Describe what you want your agent to do'); return }
     setLoading(true)
     try {
-      const build = await api.startBuild(intent.trim()) as { id: string }
-      setCurrentBuildId(build.id)
+      const build = await api.startBuild(intent.trim()) as { build_id: string }
+      setCurrentBuildId(build.build_id)
       setBuilding(true)
       setBuildStatus('decomposing')
       onSubmitted()
@@ -108,7 +108,18 @@ function InlineIntentPanel({ onSubmitted }: { onSubmitted: () => void }) {
           onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleBuild() }}
         />
         {error && (
-          <p style={{ fontSize: 12, color: '#DC2626', margin: '-4px 0 0' }}>{error}</p>
+          <div style={{
+            background: '#FEF2F2',
+            border: '1px solid #FECACA',
+            borderRadius: 6,
+            padding: '8px 12px',
+            fontSize: 12,
+            color: '#DC2626',
+            lineHeight: 1.5,
+            marginTop: -4,
+          }}>
+            {error}
+          </div>
         )}
 
         {/* Build button */}
@@ -287,7 +298,7 @@ function CanvasPageInner() {
           {!workflowId && !workflow && !autoLoadedId ? (
             <InlineIntentPanel onSubmitted={() => setWorkflow(null)} />
           ) : (
-            <AgentConfigPanel />
+            <AgentConfigPanel workflow={workflow} />
           )}
         </aside>
 

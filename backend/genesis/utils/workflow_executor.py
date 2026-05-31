@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -68,11 +69,79 @@ async def execute_deployed_workflow(
     total_tokens = 0
     error: str | None = None
     final_output: dict[str, Any] = {}
+    last_conclusion: str = ""
+
+    _MSG_TYPE_MAP = {
+        "node_started": MessageType.state_update,
+        "tool_called": MessageType.tool_call,
+        "tool_result": MessageType.tool_result,
+        "agent_conclusion": MessageType.agent_output,
+    }
+    _RECEIVER_MAP = {
+        "node_started": "system",
+        "tool_called": "tool",
+        "tool_result": "tool",
+        "agent_conclusion": "user",
+    }
+
+    async def _db_writer(event: dict) -> None:
+        nonlocal last_conclusion
+        event_type: str = event.get("type", "")
+        msg_type = _MSG_TYPE_MAP.get(event_type, MessageType.state_update)
+        receiver = _RECEIVER_MAP.get(event_type, "system")
+        node = event.get("node", "system")
+
+        if event_type == "node_started":
+            content = f"Agent '{event.get('agent_name', node)}' started"
+            sender = "system"
+        elif event_type == "tool_called":
+            args_repr = json.dumps(event.get("args", {}), ensure_ascii=False)[:300]
+            content = f"{event.get('tool', '')}({args_repr})"
+            sender = node
+        elif event_type == "tool_result":
+            result_text = str(event.get("result", ""))[:2000]
+            content = result_text
+            sender = event.get("tool", node)
+        elif event_type == "agent_conclusion":
+            content = str(event.get("content", ""))[:8000]
+            last_conclusion = content
+            sender = node
+        else:
+            content = str(event)[:2000]
+            sender = node
+
+        try:
+            async with async_session() as _sess:
+                _sess.add(
+                    Message(
+                        run_id=uuid.UUID(run_id),
+                        sender_agent=sender[:255],
+                        receiver_agent=receiver,
+                        content=content,
+                        message_type=msg_type,
+                    )
+                )
+                await _sess.commit()
+        except Exception as _exc:
+            logger.error("db_writer failed to persist message: %s", _exc)
+
+        try:
+            await redis_client.publish(
+                RUN_EVENTS,
+                {
+                    "type": "trace_event",
+                    "run_id": run_id,
+                    "event": event,
+                    "timestamp": _now_iso(),
+                },
+            )
+        except Exception as _exc:
+            logger.debug("db_writer redis publish failed: %s", _exc)
 
     try:
         from genesis.agents.graph_compiler import compile_workflow_from_json
 
-        compiled = await compile_workflow_from_json(graph_json)
+        compiled = await compile_workflow_from_json(graph_json, db_writer=_db_writer)
 
         initial: WorkflowState = {
             "workflow_id": workflow_id,
@@ -163,12 +232,13 @@ async def execute_deployed_workflow(
             run_record.output_data = output_payload
             await session.flush()
 
+        final_content = error if error else (last_conclusion or output_payload.get("summary", ""))
         session.add(
             Message(
                 run_id=uuid.UUID(run_id),
                 sender_agent="executor",
                 receiver_agent="user",
-                content=output_payload.get("summary", "")[:8000] if not error else error,
+                content=final_content[:8000],
                 message_type=MessageType.agent_output,
             )
         )

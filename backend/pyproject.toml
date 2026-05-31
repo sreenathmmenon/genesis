@@ -8,11 +8,14 @@ dependencies = [
     "beautifulsoup4>=4.14.3",
     "ddgs>=9.14.4",
     "duckduckgo-search>=8.1.1",
+    "google-api-python-client>=2.150.0",
+    "google-auth>=2.37.0",
     "jira>=3.10.5",
     "notion-client>=3.1.0",
     "playwright>=1.60.0",
     "sendgrid>=6.12.5",
     "slack-sdk>=3.42.0",
+    "twilio>=9.0.0",
 ]
 
 [tool.uv]

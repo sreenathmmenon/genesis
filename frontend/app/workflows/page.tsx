@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Nav } from '@/components/shared/Nav'
 import { api } from '@/lib/api'
 import { useWebSocket } from '@/lib/websocket'
-import type { Workflow, SchedulerJob } from '@/lib/types'
+import type { Workflow, SchedulerJob, Run } from '@/lib/types'
 
 const ACRONYMS = new Set(['hn', 'ai', 'pr', 'api', 'oss', 'ml', 'ui', 'ux', 'db', 'ci', 'cd'])
 
@@ -45,12 +45,32 @@ function formatNextRun(iso: string | null): string {
   return d.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
+function formatRelativeTime(isoStr: string): string {
+  const ms = Date.now() - new Date(isoStr).getTime()
+  const s = Math.floor(ms / 1000)
+  if (s < 60) return `${s}s ago`
+  const m = Math.floor(s / 60)
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  return `${Math.floor(h / 24)}d ago`
+}
+
 type CardRunStatus = 'idle' | 'running' | 'done' | 'failed'
 
-function AgentCard({ wf, nextRun, runStatus, onRun, onPauseToggle }: {
+const RUN_STATUS_COLORS: Record<string, { bg: string; color: string; label: string }> = {
+  completed: { bg: '#F0FDF4', color: '#16A34A', label: 'Completed' },
+  running:   { bg: '#FFF7ED', color: '#D97706', label: 'Running' },
+  failed:    { bg: '#FEF2F2', color: '#DC2626', label: 'Failed' },
+  cancelled: { bg: '#F3F4F6', color: '#6B7280', label: 'Cancelled' },
+}
+
+function AgentCard({ wf, nextRun, runStatus, lastRun, lastRunId, onRun, onPauseToggle }: {
   wf: Workflow
   nextRun: string | null
   runStatus: CardRunStatus
+  lastRun: Run | null
+  lastRunId: string | null
   onRun: () => void
   onPauseToggle: () => void
 }) {
@@ -132,6 +152,11 @@ function AgentCard({ wf, nextRun, runStatus, onRun, onPauseToggle }: {
               On demand
             </span>
           )}
+          {nextRun && (
+            <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+              {formatNextRun(nextRun)}
+            </span>
+          )}
           {running && (
             <span style={{ fontSize: 12, color: '#D97706', display: 'flex', alignItems: 'center', gap: 5 }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#D97706', animation: 'pulse-dot 1.2s infinite', flexShrink: 0 }} />
@@ -145,6 +170,48 @@ function AgentCard({ wf, nextRun, runStatus, onRun, onPauseToggle }: {
             <span style={{ fontSize: 12, color: '#DC2626', fontWeight: 500 }}>Failed</span>
           )}
         </div>
+
+        {/* Last run strip */}
+        {lastRun && !running && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '7px 10px',
+            background: '#F9FAFB',
+            borderRadius: 6,
+            border: '1px solid #F3F4F6',
+          }}>
+            <span style={{ fontSize: 11, color: '#9CA3AF', flexShrink: 0 }}>Last run</span>
+            <span style={{ fontSize: 11, color: '#6B7280', flex: 1 }}>{formatRelativeTime(lastRun.started_at)}</span>
+            {(() => {
+              const s = RUN_STATUS_COLORS[lastRun.status] ?? { bg: '#F3F4F6', color: '#6B7280', label: lastRun.status }
+              return (
+                <span style={{
+                  fontSize: 11, fontWeight: 500,
+                  color: s.color,
+                  background: s.bg,
+                  borderRadius: 4,
+                  padding: '1px 6px',
+                }}>
+                  {s.label}
+                </span>
+              )
+            })()}
+            {lastRunId && (
+              <Link
+                href={`/runs/${lastRunId}`}
+                style={{ fontSize: 11, color: '#6B7280', textDecoration: 'none', padding: '1px 6px', borderRadius: 4, background: '#F3F4F6', flexShrink: 0 }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#374151'; e.currentTarget.style.background = '#E5E7EB' }}
+                onMouseLeave={e => { e.currentTarget.style.color = '#6B7280'; e.currentTarget.style.background = '#F3F4F6' }}
+                onClick={e => e.stopPropagation()}
+              >
+                View →
+              </Link>
+            )}
+          </div>
+        )}
+        {lastRun?.status === 'failed' && !running && (
+          <span style={{ fontSize: 11, color: '#DC2626', fontWeight: 500 }}>Last run failed</span>
+        )}
       </div>
 
       {/* Actions */}
@@ -243,7 +310,21 @@ export default function WorkflowsPage() {
   const [jobs, setJobs] = useState<SchedulerJob[]>([])
   const [loading, setLoading] = useState(true)
   const [runStates, setRunStates] = useState<Record<string, CardRunStatus>>({})
+  const [lastRunByWf, setLastRunByWf] = useState<Record<string, Run>>({})
   const { subscribe } = useWebSocket()
+
+  const loadLastRuns = useCallback(async (wfIds: string[]) => {
+    const results = await Promise.allSettled(
+      wfIds.map(id => api.getWorkflowRuns(id))
+    )
+    const map: Record<string, Run> = {}
+    results.forEach((r, i) => {
+      if (r.status === 'fulfilled' && Array.isArray(r.value) && r.value.length > 0) {
+        map[wfIds[i]!] = r.value[0] as Run
+      }
+    })
+    setLastRunByWf(map)
+  }, [])
 
   useEffect(() => {
     Promise.all([api.getWorkflows(), api.getSchedulerJobs()])
@@ -253,10 +334,11 @@ export default function WorkflowsPage() {
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         setWorkflows(active)
         setJobs(js as SchedulerJob[])
+        if (active.length > 0) loadLastRuns(active.map(w => w.id))
       })
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [])
+  }, [loadLastRuns])
 
   useEffect(() => {
     const unsub = subscribe('run_event', (p) => {
@@ -264,10 +346,25 @@ export default function WorkflowsPage() {
       if (event === 'run_started') setRunStates(prev => ({ ...prev, [wid]: 'running' }))
       else if (event === 'run_completed') {
         setRunStates(prev => ({ ...prev, [wid]: 'done' }))
-        setTimeout(() => setRunStates(prev => ({ ...prev, [wid]: 'idle' })), 3000)
+        // Reload last run for this workflow after completion
+        setTimeout(() => {
+          api.getWorkflowRuns(wid).then(runs => {
+            if (Array.isArray(runs) && runs.length > 0) {
+              setLastRunByWf(prev => ({ ...prev, [wid]: runs[0] as Run }))
+            }
+          }).catch(() => {})
+          setRunStates(prev => ({ ...prev, [wid]: 'idle' }))
+        }, 3000)
       } else if (event === 'run_failed') {
         setRunStates(prev => ({ ...prev, [wid]: 'failed' }))
-        setTimeout(() => setRunStates(prev => ({ ...prev, [wid]: 'idle' })), 5000)
+        setTimeout(() => {
+          api.getWorkflowRuns(wid).then(runs => {
+            if (Array.isArray(runs) && runs.length > 0) {
+              setLastRunByWf(prev => ({ ...prev, [wid]: runs[0] as Run }))
+            }
+          }).catch(() => {})
+          setRunStates(prev => ({ ...prev, [wid]: 'idle' }))
+        }, 5000)
       }
     })
     return unsub
@@ -346,6 +443,8 @@ export default function WorkflowsPage() {
                   wf={wf}
                   nextRun={getNextRun(wf.id)}
                   runStatus={runStates[wf.id] ?? 'idle'}
+                  lastRun={lastRunByWf[wf.id] ?? null}
+                  lastRunId={lastRunByWf[wf.id]?.id ?? null}
                   onRun={() => handleRun(wf.id)}
                   onPauseToggle={() => handlePauseToggle(wf)}
                 />

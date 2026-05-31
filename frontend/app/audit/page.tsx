@@ -278,9 +278,10 @@ export default function AuditPage() {
   const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const offsetRef = useRef(0)
 
   const load = useCallback(async (reset = false) => {
-    const newOffset = reset ? 0 : offset
+    const newOffset = reset ? 0 : offsetRef.current
     if (reset) setLoading(true)
     try {
       const params: Parameters<typeof api.getAuditLogs>[0] = {
@@ -293,9 +294,11 @@ export default function AuditPage() {
       const data = await api.getAuditLogs(params) as { items: AuditEntry[]; limit: number; offset: number }
       if (reset) {
         setEntries(data.items)
+        offsetRef.current = data.items.length
         setOffset(data.items.length)
       } else {
         setEntries(prev => [...prev, ...data.items])
+        offsetRef.current = offsetRef.current + data.items.length
         setOffset(prev => prev + data.items.length)
       }
       setHasMore(data.items.length === PAGE_SIZE)
@@ -304,7 +307,7 @@ export default function AuditPage() {
     } finally {
       if (reset) setLoading(false)
     }
-  }, [filterType, filterEntity, offset])
+  }, [filterType, filterEntity])
 
   // Initial load + filter changes
   useEffect(() => {

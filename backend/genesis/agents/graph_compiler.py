@@ -64,7 +64,10 @@ async def compile_genesis_graph(
     return graph.compile(checkpointer=checkpointer)
 
 
-async def compile_workflow_from_json(graph_json: dict[str, Any]):
+async def compile_workflow_from_json(
+    graph_json: dict[str, Any],
+    db_writer: Any | None = None,
+):
     """Dynamically compile an operational workflow from a stored graph_json."""
     from genesis.tools.implementations import get_tools_for_agent
 
@@ -85,12 +88,11 @@ async def compile_workflow_from_json(graph_json: dict[str, Any]):
     # Tools that produce side-effects (send/notify) — stop looping after using these
     from genesis.tools.implementations import TERMINAL_TOOLS as _TERMINAL_TOOLS
 
-    def _make_node(sp: str, lm, tool_names: list[str] = []):
+    def _make_node(node_id: str, sp: str, lm, tool_names: list[str] = []):
         tools = get_tools_for_agent(tool_names)
         bound_lm = lm.bind_tools(tools) if tools else lm
         tool_map = {t.name: t for t in tools}
 
-        node_label = sp[:40].replace("\n", " ")
         _is_terminal = bool(tools) and all(t in _TERMINAL_TOOLS for t in tool_names)
         system_prompt = sp
         if tools:
@@ -107,7 +109,6 @@ async def compile_workflow_from_json(graph_json: dict[str, Any]):
         async def _node(state: WorkflowState) -> dict[str, Any]:
             from langchain_core.messages import ToolMessage
             prior = state.get("intermediate_results", {})
-            # Build clean context: list values clearly for the LLM
             if prior:
                 context_parts = []
                 for k, v in prior.items():
@@ -116,13 +117,14 @@ async def compile_workflow_from_json(graph_json: dict[str, Any]):
                 context = "Data from previous agents:\n\n" + "\n\n".join(context_parts)
             else:
                 context = json.dumps(state.get("input_data", {}))
-            logger.info("Node [%s] starting — prior keys: %s", node_label, list(prior.keys()))
+            logger.info("Node [%s] starting — prior keys: %s", node_id, list(prior.keys()))
 
-            # ReAct loop: allow up to 10 tool call rounds
+            if db_writer is not None:
+                await db_writer({"type": "node_started", "node": node_id, "agent_name": node_id.replace("_", " ").title()})
+
             messages = [SystemMessage(content=system_prompt), HumanMessage(content=context)]
             results: dict[str, Any] = {}
             max_rounds = 10
-            # For nodes with tools, force at least one tool call in round 0
             first_round_lm = lm.bind_tools(tools, tool_choice="any") if tools else lm
 
             for _round in range(max_rounds):
@@ -130,50 +132,72 @@ async def compile_workflow_from_json(graph_json: dict[str, Any]):
                     lm_to_use = first_round_lm if (_round == 0 and tools) else bound_lm
                     response = await lm_to_use.ainvoke(messages)
                 except Exception as exc:
-                    logger.error("Node [%s] LLM invoke failed (round %d): %s", node_label, _round, exc)
-                    results[node_label] = f"LLM_ERROR: {exc}"
+                    logger.error("Node [%s] LLM invoke failed (round %d): %s", node_id, _round, exc)
+                    results[node_id] = f"LLM_ERROR: {exc}"
                     break
 
                 tool_calls = getattr(response, "tool_calls", [])
-                logger.info("Node [%s] round %d — tool_calls: %s", node_label, _round, [tc["name"] for tc in tool_calls])
+                logger.info("Node [%s] round %d — tool_calls: %s", node_id, _round, [tc["name"] for tc in tool_calls])
 
                 if not tool_calls:
-                    # No more tool calls — capture the final text response
-                    results[node_label] = str(response.content)
+                    response_content = str(response.content)
+                    results[node_id] = response_content
+                    if db_writer is not None:
+                        await db_writer({"type": "agent_conclusion", "node": node_id, "content": response_content})
                     break
 
-                # If ALL tool calls in this round are terminal, execute them and stop
                 all_terminal = all(tc["name"] in _TERMINAL_TOOLS for tc in tool_calls)
 
-                # Execute all tool calls in this round
                 messages.append(response)
                 tool_results = []
                 for tc in tool_calls:
                     tool = tool_map.get(tc["name"])
+                    if db_writer is not None:
+                        await db_writer({"type": "tool_called", "node": node_id, "tool": tc["name"], "args": tc.get("args", {})})
                     if tool:
                         try:
-                            logger.info("Node [%s] calling tool %s", node_label, tc["name"])
+                            logger.info("Node [%s] calling tool %s", node_id, tc["name"])
                             result = await tool.ainvoke(tc["args"])
-                            results[tc["name"]] = str(result)
-                            logger.info("Node [%s] tool %s returned: %s", node_label, tc["name"], str(result)[:200])
-                            tool_results.append(ToolMessage(content=str(result), tool_call_id=tc["id"]))
+                            result_str = str(result)
+                            results[tc["name"]] = result_str
+                            logger.info("Node [%s] tool %s returned: %s", node_id, tc["name"], result_str[:200])
+                            if db_writer is not None:
+                                await db_writer({"type": "tool_result", "node": node_id, "tool": tc["name"], "result": result_str})
+                            tool_results.append(ToolMessage(content=result_str, tool_call_id=tc["id"]))
                         except Exception as exc:
-                            logger.error("Node [%s] tool %s failed: %s", node_label, tc["name"], exc)
+                            logger.error("Node [%s] tool %s failed: %s", node_id, tc["name"], exc)
                             err_msg = f"ERROR: {exc}"
                             results[tc["name"]] = err_msg
+                            if db_writer is not None:
+                                await db_writer({"type": "tool_result", "node": node_id, "tool": tc["name"], "result": err_msg})
                             tool_results.append(ToolMessage(content=err_msg, tool_call_id=tc["id"]))
                     else:
-                        logger.warning("Node [%s] tool %s not found", node_label, tc["name"])
+                        logger.warning("Node [%s] tool %s not found", node_id, tc["name"])
+                        if db_writer is not None:
+                            await db_writer({"type": "tool_result", "node": node_id, "tool": tc["name"], "result": "Tool not available"})
                         tool_results.append(ToolMessage(content="Tool not available", tool_call_id=tc["id"]))
                 messages.extend(tool_results)
-                # Stop after executing terminal tool calls (no need to loop)
                 if all_terminal:
-                    results.setdefault(node_label, "")
+                    if db_writer is not None:
+                        await db_writer({"type": "agent_conclusion", "node": node_id, "content": results.get(node_id, "Action completed.")})
+                    results.setdefault(node_id, "")
                     break
             else:
-                logger.warning("Node [%s] hit max tool call rounds (%d)", node_label, max_rounds)
+                logger.warning("Node [%s] hit max tool call rounds (%d)", node_id, max_rounds)
+                # Force a final synthesis after hitting max rounds
+                try:
+                    synthesis_prompt = "Based on all the research and tool results above, write your final conclusion and summary. Do NOT call any more tools."
+                    messages.append(HumanMessage(content=synthesis_prompt))
+                    final_response = await lm.ainvoke(messages)
+                    conclusion = str(final_response.content)
+                    results[node_id] = conclusion
+                    if db_writer is not None:
+                        await db_writer({"type": "agent_conclusion", "node": node_id, "content": conclusion})
+                except Exception as exc:
+                    logger.error("Node [%s] synthesis after max rounds failed: %s", node_id, exc)
+                    results.setdefault(node_id, f"Max tool rounds reached.")
 
-            logger.info("Node [%s] done — result keys: %s", node_label, list(results.keys()))
+            logger.info("Node [%s] done — result keys: %s", node_id, list(results.keys()))
             return {"intermediate_results": results}
         return _node
 
@@ -188,7 +212,7 @@ async def compile_workflow_from_json(graph_json: dict[str, Any]):
         system_prompt: str = node.get("system_prompt", "You are a helpful agent.")
         tool_names: list[str] = node.get("tools") or []
         llm = get_llm(model_name)
-        graph.add_node(node_id, _make_node(system_prompt, llm, tool_names))
+        graph.add_node(node_id, _make_node(node_id, system_prompt, llm, tool_names))
 
     # Build edge sets for parallel start/end detection
     nodes_with_incoming: set[str] = {e["target"] for e in edges if e.get("target")}

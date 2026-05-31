@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Nav } from '@/components/shared/Nav'
 import { Badge, Button, EmptyState, Label } from '@/components/ui'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -219,6 +220,33 @@ function RunRow({ run, workflowName }: { run: Run; workflowName: string }) {
         </span>
       </button>
 
+      {/* View result link — shown in collapsed state */}
+      {!expanded && (
+        <div style={{ padding: '0 20px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          {run.error && (
+            <span style={{
+              fontSize: 12, color: '#DC2626', fontStyle: 'italic',
+              overflow: 'hidden', flex: 1, textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {run.error.slice(0, 120)}
+            </span>
+          )}
+          <Link
+            href={`/runs/${run.id}`}
+            style={{
+              fontSize: 12, color: '#6B7280', textDecoration: 'none',
+              padding: '2px 8px', borderRadius: 4, border: '1px solid #E5E7EB',
+              background: '#F9FAFB', flexShrink: 0, marginLeft: 'auto',
+            }}
+            onClick={e => e.stopPropagation()}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.color = '#374151' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#6B7280' }}
+          >
+            View result →
+          </Link>
+        </div>
+      )}
+
       {/* Output preview — shown collapsed */}
       {!expanded && run.error && (
         <div style={{ padding: '0 20px 10px' }}>
@@ -273,7 +301,7 @@ export default function HistoryPage() {
       setLoading(true)
       try {
         const [runsData, workflowsData] = await Promise.all([
-          api.getRuns() as Promise<Run[]>,
+          api.getRuns({ offset: 0, limit: PAGE_SIZE }) as Promise<Run[]>,
           api.getWorkflows() as Promise<Workflow[]>,
         ])
         setRuns(runsData)
@@ -296,7 +324,7 @@ export default function HistoryPage() {
   async function loadPage(newPage: number) {
     setLoading(true)
     try {
-      const data = await api.getRuns() as Run[]
+      const data = await api.getRuns({ offset: newPage * PAGE_SIZE, limit: PAGE_SIZE }) as Run[]
       setRuns(data)
       setPage(newPage)
       setHasMore(data.length === PAGE_SIZE)

@@ -113,7 +113,7 @@ export default function HomePage() {
     async function load() {
       try {
         const [runsData, workflowsData] = await Promise.all([
-          api.getRuns() as Promise<Run[]>,
+          api.getRuns({}) as Promise<Run[]>,
           api.getWorkflows() as Promise<Workflow[]>,
         ])
 
@@ -228,7 +228,9 @@ export default function HomePage() {
                   lineHeight: 1,
                   marginBottom: 4,
                 }}>
-                  {loading ? '—' : card.value}
+                  {loading ? (
+                    <div className="animate-pulse bg-gray-200 rounded h-8 w-16" />
+                  ) : card.value}
                 </div>
                 <div style={{ fontSize: 12, color: '#9CA3AF' }}>
                   {card.sub}
@@ -331,7 +333,7 @@ export default function HomePage() {
                 )}
 
                 {runs.map((run, i) => (
-                  <Link key={run.id} href="/history" style={{ textDecoration: 'none', display: 'block' }}>
+                  <Link key={run.id} href={`/runs/${run.id}`} style={{ textDecoration: 'none', display: 'block' }}>
                     <div
                       style={{
                         display: 'flex',

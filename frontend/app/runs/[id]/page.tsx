@@ -28,6 +28,14 @@ function absTime(iso: string | null): string {
   })
 }
 
+function msgTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+function humanizeNodeId(id: string): string {
+  return id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
 // ── Status badge ──────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
@@ -49,15 +57,164 @@ function StatusBadge({ status }: { status: string }) {
   )
 }
 
+// ── Reasoning trace ───────────────────────────────────────────────────────────
+
+function TraceStep({ msg }: { msg: Message }) {
+  const [expanded, setExpanded] = useState(false)
+
+  if (msg.message_type === 'state_update') {
+    const agentName = msg.content.replace(/^Agent '(.+)' started$/, '$1') || msg.sender_agent
+    return (
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '10px 0' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, width: 16 }}>
+          <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#6366F1', flexShrink: 0, marginTop: 3 }} />
+          <div style={{ width: 1, flex: 1, background: '#E5E7EB', marginTop: 4 }} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>
+              {humanizeNodeId(agentName)}
+            </span>
+            <span style={{ fontSize: 11, color: '#9CA3AF' }}>{msgTime(msg.timestamp)}</span>
+          </div>
+          <span style={{ fontSize: 12, color: '#6B7280' }}>Starting...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (msg.message_type === 'tool_call') {
+    const toolContent = msg.content.slice(0, 120)
+    return (
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '6px 0', paddingLeft: 28 }}>
+        <span style={{ fontSize: 13, color: '#7C3AED', flexShrink: 0, marginTop: 1 }}>⚙</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, color: '#374151' }}>
+              <span style={{ fontWeight: 600, color: '#7C3AED' }}>Called: </span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, background: '#F3F0FF', color: '#5B21B6', padding: '1px 6px', borderRadius: 4 }}>
+                {toolContent}
+              </span>
+            </span>
+            <span style={{ fontSize: 11, color: '#9CA3AF' }}>{msgTime(msg.timestamp)}</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (msg.message_type === 'tool_result') {
+    const text = msg.content
+    const isLong = text.length > 200
+    const display = isLong && !expanded ? text.slice(0, 200) + '…' : text
+    return (
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '6px 0', paddingLeft: 28 }}>
+        <span style={{ fontSize: 13, color: '#16A34A', flexShrink: 0, marginTop: 1 }}>✓</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#16A34A' }}>Result:</span>
+            <span style={{ fontSize: 11, color: '#9CA3AF' }}>{msgTime(msg.timestamp)}</span>
+          </div>
+          <p style={{
+            fontSize: 12, color: '#374151', lineHeight: 1.6,
+            margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+            background: '#F0FDF4', border: '1px solid #BBF7D0',
+            borderRadius: 6, padding: '8px 10px',
+          }}>
+            {display}
+          </p>
+          {isLong && (
+            <button
+              onClick={() => setExpanded(e => !e)}
+              style={{ fontSize: 11, color: '#6B7280', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', marginTop: 2 }}
+            >
+              {expanded ? 'Show less' : 'Show more'}
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  if (msg.message_type === 'agent_output' && msg.sender_agent !== 'executor') {
+    const text = msg.content
+    const isLong = text.length > 300
+    const display = isLong && !expanded ? text.slice(0, 300) + '…' : text
+    return (
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '8px 0', paddingLeft: 28 }}>
+        <span style={{ fontSize: 13, flexShrink: 0, marginTop: 1 }}>💡</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#B45309' }}>Concluded:</span>
+            <span style={{ fontSize: 11, color: '#9CA3AF' }}>{msgTime(msg.timestamp)}</span>
+          </div>
+          <p style={{
+            fontSize: 13, color: '#111827', lineHeight: 1.75,
+            margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+          }}>
+            {display}
+          </p>
+          {isLong && (
+            <button
+              onClick={() => setExpanded(e => !e)}
+              style={{ fontSize: 11, color: '#6B7280', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', marginTop: 2 }}
+            >
+              {expanded ? 'Show less' : 'Show more'}
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  return null
+}
+
+function ReasoningTrace({ messages }: { messages: Message[] }) {
+  const traceMessages = messages.filter(m => m.sender_agent !== 'executor')
+
+  if (traceMessages.length === 0) {
+    return (
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9CA3AF', marginBottom: 10 }}>
+          Reasoning trace
+        </div>
+        <div style={{
+          background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8,
+          padding: '20px 24px', textAlign: 'center',
+        }}>
+          <p style={{ fontSize: 13, color: '#9CA3AF', margin: 0 }}>
+            No trace available for this run — older runs don&apos;t have detailed traces.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9CA3AF', marginBottom: 10 }}>
+        Reasoning trace · {traceMessages.length} steps
+      </div>
+      <div style={{
+        background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8,
+        padding: '16px 20px',
+      }}>
+        {traceMessages.map((msg, i) => (
+          <TraceStep key={i} msg={msg} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Agent output card ──────────────────────────────────────────────────────────
 
 function AgentOutputCard({ agent, content, index }: { agent: string; content: string; index: number }) {
   const [expanded, setExpanded] = useState(index === 0)
   const isLong = content.length > 300
 
-  const label = agent
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, c => c.toUpperCase())
+  const label = humanizeNodeId(agent)
 
   return (
     <div style={{
@@ -276,7 +433,6 @@ export default function RunPage() {
   const [workflowWebhook, setWorkflowWebhook] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [rerunning, setRerunning] = useState(false)
-  const [showMessages, setShowMessages] = useState(false)
 
   useEffect(() => {
     if (!runId) return
@@ -291,7 +447,6 @@ export default function RunPage() {
       setOutput(out)
       setMessages(msgs as Message[])
 
-      // Load workflow info for name + webhook
       api.getWorkflow(run.workflow_id).then(wf => {
         const w = wf as { name: string; webhook_url: string | null }
         setWorkflowName(w.name)
@@ -403,23 +558,31 @@ export default function RunPage() {
           </div>
 
           {/* Summary card — the main output */}
-          {output?.summary && (
-            <div style={{
-              background: succeeded ? '#FAFFFE' : failed ? '#FFFAFA' : '#FFFFFF',
-              border: `1px solid ${succeeded ? '#BBF7D0' : failed ? '#FECACA' : '#E5E7EB'}`,
-              borderRadius: 10,
-              padding: '20px 24px',
-              marginBottom: 20,
-              boxShadow: succeeded ? '0 2px 8px rgba(22,163,74,0.06)' : '0 1px 3px rgba(0,0,0,0.04)',
-            }}>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9CA3AF', marginBottom: 10 }}>
-                Output
+          {(() => {
+            const summaryText = output?.summary
+              || (agentOutputEntries.length > 0
+                ? agentOutputEntries.find(([, v]) => v?.trim())?.[1] ?? null
+                : null)
+            const displayText = summaryText ?? 'Run completed — no summary available.'
+            const isFallback = !output?.summary
+            return (
+              <div style={{
+                background: succeeded ? '#FAFFFE' : failed ? '#FFFAFA' : '#FFFFFF',
+                border: `1px solid ${succeeded ? '#BBF7D0' : failed ? '#FECACA' : '#E5E7EB'}`,
+                borderRadius: 10,
+                padding: '20px 24px',
+                marginBottom: 20,
+                boxShadow: succeeded ? '0 2px 8px rgba(22,163,74,0.06)' : '0 1px 3px rgba(0,0,0,0.04)',
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9CA3AF', marginBottom: 10 }}>
+                  Output
+                </div>
+                <p style={{ fontSize: 14, color: isFallback ? '#9CA3AF' : '#111827', lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontStyle: isFallback && !summaryText ? 'italic' : 'normal' }}>
+                  {displayText}
+                </p>
               </div>
-              <p style={{ fontSize: 14, color: '#111827', lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                {output.summary}
-              </p>
-            </div>
-          )}
+            )
+          })()}
 
           {/* Error */}
           {failed && run.error && (
@@ -433,6 +596,9 @@ export default function RunPage() {
               </p>
             </div>
           )}
+
+          {/* Reasoning trace — primary content */}
+          <ReasoningTrace messages={messages} />
 
           {/* Per-agent outputs */}
           {agentOutputEntries.length > 0 && (
@@ -476,47 +642,6 @@ export default function RunPage() {
               </div>
             ))}
           </div>
-
-          {/* Message trace — collapsible */}
-          {messages.length > 0 && (
-            <div style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 8, overflow: 'hidden' }}>
-              <button
-                onClick={() => setShowMessages(m => !m)}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  width: '100%', padding: '12px 16px', background: '#F9FAFB',
-                  border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-                  borderBottom: showMessages ? '1px solid #E5E7EB' : 'none',
-                }}
-              >
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>
-                  Message trace · {messages.length} messages
-                </span>
-                <span style={{ fontSize: 11, color: '#9CA3AF' }}>{showMessages ? '▴ hide' : '▾ show'}</span>
-              </button>
-              {showMessages && (
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {messages.map((msg, i) => (
-                    <div key={i} style={{
-                      display: 'flex', gap: 12, padding: '10px 16px',
-                      borderBottom: i < messages.length - 1 ? '1px solid #F3F4F6' : 'none',
-                      alignItems: 'flex-start',
-                    }}>
-                      <span style={{ fontSize: 10, color: '#B0B7C3', fontFamily: 'var(--font-mono)', flexShrink: 0, marginTop: 3, minWidth: 56 }}>
-                        {new Date(msg.timestamp).toLocaleTimeString('en', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                      </span>
-                      <span style={{ fontSize: 10, fontWeight: 500, color: '#6B7280', background: '#E5E7EB', borderRadius: 3, padding: '1px 5px', flexShrink: 0, fontFamily: 'var(--font-mono)', marginTop: 2, maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {msg.sender_agent}
-                      </span>
-                      <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.6, flex: 1, minWidth: 0, margin: 0, wordBreak: 'break-word' }}>
-                        {msg.content.slice(0, 300)}{msg.content.length > 300 ? '…' : ''}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
         </div>
       </div>

@@ -6,7 +6,7 @@ import {
 } from '@/components/ui'
 import { useGenesisStore } from '@/lib/store'
 import { api } from '@/lib/api'
-import type { Agent, MemoryType } from '@/lib/types'
+import type { Workflow } from '@/lib/types'
 
 const ALLOWED_MODELS = [
   'claude-sonnet-4-5',
@@ -26,34 +26,13 @@ const AVAILABLE_TOOLS = [
   'scheduler',
 ] as const
 
-const MEMORY_OPTIONS: { value: MemoryType; label: string; description: string }[] = [
-  { value: 'none',       label: 'None',       description: 'Stateless — no memory between runs' },
-  { value: 'short_term', label: 'Short-term', description: 'Remembers within a single run' },
-  { value: 'long_term',  label: 'Long-term',  description: 'Persists across runs via Qdrant' },
-]
-
-function nextCronRuns(expr: string, count = 3): string[] {
-  // Minimal cron preview — parse simple "min hour * * day" patterns
-  try {
-    const parts = expr.trim().split(/\s+/)
-    if (parts.length !== 5) return []
-    const [minPart, hourPart, , , weekdayPart] = parts
-    if (!minPart || !hourPart || !weekdayPart) return []
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-    const now = new Date()
-    const results: string[] = []
-    let d = new Date(now)
-    while (results.length < count) {
-      d = new Date(d.getTime() + 24 * 60 * 60 * 1000)
-      const matchDay = weekdayPart === '*' || days[d.getDay()] === days[parseInt(weekdayPart, 10)]
-      if (!matchDay) continue
-      d.setHours(parseInt(hourPart, 10), parseInt(minPart, 10), 0, 0)
-      results.push(d.toLocaleString('en', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }))
-    }
-    return results
-  } catch {
-    return []
-  }
+interface GraphNode {
+  id: string
+  system_prompt: string
+  model_name: string
+  tools: string[]
+  schedule: string | null
+  memory_type?: string
 }
 
 interface SectionProps { title: string; children: React.ReactNode; defaultOpen?: boolean }
@@ -64,7 +43,7 @@ function Section({ title, children, defaultOpen = true }: SectionProps) {
     <div className="flex flex-col">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center justify-between py-2 px-4 text-left hover:bg-surface-2 transition-colors duration-fast focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
+        className="flex items-center justify-between py-2 px-4 text-left hover:bg-surface-2 transition-colors duration-fast focus-visible:outline-none"
       >
         <Label>{title}</Label>
         <span className="text-text-tertiary text-xs">{open ? '−' : '+'}</span>
@@ -88,63 +67,59 @@ function FieldRow({ label, children }: { label: string; children: React.ReactNod
   )
 }
 
-export function AgentConfigPanel() {
+export function AgentConfigPanel({ workflow }: { workflow: Workflow | null }) {
   const selectedNodeId = useGenesisStore((s) => s.selectedNodeId)
   const updateNode = useGenesisStore((s) => s.updateNode)
 
-  const [agent, setAgent] = useState<Agent | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [node, setNode] = useState<GraphNode | null>(null)
   const [saving, setSaving] = useState(false)
   const [saveState, setSaveState] = useState<'idle' | 'saved' | 'error'>('idle')
   const [dirty, setDirty] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
+  // When selected node or workflow changes, extract node data from graph_json
   useEffect(() => {
-    if (!selectedNodeId) { setAgent(null); setDirty(false); return }
-    setLoading(true)
-    api.getAgents()
-      .then((agents: Agent[]) => {
-        const found = agents.find((a) => a.id === selectedNodeId) ?? null
-        setAgent(found)
-        setDirty(false)
-      })
-      .catch(() => setAgent(null))
-      .finally(() => setLoading(false))
-  }, [selectedNodeId])
+    if (!selectedNodeId || !workflow) { setNode(null); setDirty(false); return }
 
-  function patch<K extends keyof Agent>(key: K, value: Agent[K]) {
-    if (!agent) return
-    setAgent({ ...agent, [key]: value })
+    const graphJson = workflow.graph_json as { nodes?: GraphNode[] } | null
+    const nodes = graphJson?.nodes ?? []
+    const found = nodes.find((n) => n.id === selectedNodeId) ?? null
+    setNode(found ? { ...found } : null)
+    setDirty(false)
+    setSaveState('idle')
+    setErrorMsg('')
+  }, [selectedNodeId, workflow])
+
+  function patch<K extends keyof GraphNode>(key: K, value: GraphNode[K]) {
+    if (!node) return
+    setNode({ ...node, [key]: value })
     setDirty(true)
     setSaveState('idle')
   }
 
   function toggleTool(tool: string) {
-    if (!agent) return
-    const current = agent.tools as string[]
-    const next = current.includes(tool)
-      ? current.filter((t) => t !== tool)
-      : [...current, tool]
-    patch('tools', next as Agent['tools'])
+    if (!node) return
+    const current = node.tools
+    const next = current.includes(tool) ? current.filter((t) => t !== tool) : [...current, tool]
+    patch('tools', next)
   }
 
   async function handleSave() {
-    if (!agent) return
+    if (!node || !workflow) return
     setSaving(true)
     setErrorMsg('')
     try {
-      const updated: Agent = await api.updateAgent(agent.id, {
-        name: agent.name,
-        role: agent.role,
-        system_prompt: agent.system_prompt,
-        model_name: agent.model_name,
-        memory_type: agent.memory_type,
-        tools: agent.tools,
-        schedule: agent.schedule,
-        guardrails: agent.guardrails,
+      // Patch the graph_json in place
+      const currentGraph = (workflow.graph_json ?? { nodes: [], edges: [] }) as { nodes: GraphNode[]; edges: unknown[] }
+      const updatedNodes = currentGraph.nodes.map((n) =>
+        n.id === node.id ? { ...n, ...node } : n
+      )
+      await api.updateWorkflow(workflow.id, {
+        graph_json: { ...currentGraph, nodes: updatedNodes },
       })
-      setAgent(updated)
-      updateNode(agent.id, { label: updated.name })
+
+      // Update canvas node label if name-like field changed
+      updateNode(node.id, { label: node.id, model: node.model_name, tools: node.tools })
       setDirty(false)
       setSaveState('saved')
       setTimeout(() => setSaveState('idle'), 2000)
@@ -156,53 +131,49 @@ export function AgentConfigPanel() {
     }
   }
 
-  // ── Empty states ────────────────────────────────────────────────────────────
+  // ── Empty states ─────────────────────────────────────────────────────────────
 
   if (!selectedNodeId) {
     return (
       <EmptyState
         icon="⬡"
         title="No agent selected"
-        body="Click an agent node on the canvas to configure it"
+        body="Click an agent node on the canvas to edit its system prompt, model, and tools"
         className="h-full"
       />
     )
   }
 
-  if (loading) {
+  if (!workflow) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Label>Loading…</Label>
+      <div className="flex items-center justify-center h-full px-4">
+        <p className="text-sm text-text-tertiary text-center">Load a workflow to enable editing</p>
       </div>
     )
   }
 
-  if (!agent) {
+  if (!node) {
     return (
       <EmptyState
         icon="?"
-        title="Agent not found"
-        body="This node doesn't have a matching agent record yet"
+        title="Node not found"
+        body={`No graph node with id "${selectedNodeId}"`}
         className="h-full"
       />
     )
   }
 
-  // ── Derived values ──────────────────────────────────────────────────────────
-
-  const tools = agent.tools as string[]
-  const guardrails = agent.guardrails as Record<string, unknown>
-  const cronRuns = agent.schedule ? nextCronRuns(agent.schedule) : []
-
-  // ── Render ──────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
 
       {/* Panel header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border-0 flex-shrink-0 bg-surface-1">
-        <div className="flex items-center gap-2">
-          <Label>Agent Config</Label>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-semibold text-text-primary truncate" title={node.id}>
+            {node.id}
+          </span>
           {dirty && <Badge variant="warning">unsaved</Badge>}
         </div>
         <Button
@@ -224,25 +195,13 @@ export function AgentConfigPanel() {
       {/* Scrollable sections */}
       <div className="flex-1 overflow-y-auto">
 
-        {/* 1. Identity */}
-        <Section title="Identity">
-          <FieldRow label="Name">
-            <Input
-              value={agent.name}
-              onChange={(e) => patch('name', e.target.value)}
-            />
-          </FieldRow>
-          <FieldRow label="Role">
-            <Input
-              value={agent.role}
-              onChange={(e) => patch('role', e.target.value)}
-            />
-          </FieldRow>
+        {/* 1. Model */}
+        <Section title="Model">
           <FieldRow label="Model">
             <select
-              value={agent.model_name}
+              value={node.model_name}
               onChange={(e) => patch('model_name', e.target.value)}
-              className="w-full bg-surface-1 border border-border-2 rounded-md px-3 py-2 text-base text-text-primary transition-colors duration-fast focus:border-border-3 focus:outline-none appearance-none"
+              className="w-full bg-surface-1 border border-border-2 rounded-md px-3 py-2 text-sm text-text-primary transition-colors duration-fast focus:border-border-3 focus:outline-none appearance-none"
             >
               {ALLOWED_MODELS.map((m) => (
                 <option key={m} value={m}>{m}</option>
@@ -251,172 +210,63 @@ export function AgentConfigPanel() {
           </FieldRow>
         </Section>
 
-        {/* 2. Behavior */}
-        <Section title="Behavior">
-          <FieldRow label="System Prompt">
-            <Textarea
-              mono
-              value={agent.system_prompt}
-              onChange={(e) => patch('system_prompt', e.target.value)}
-              rows={6}
-              placeholder="You are a…"
-            />
-          </FieldRow>
-          <FieldRow label="Tools">
-            <div className="flex flex-col gap-2">
-              {AVAILABLE_TOOLS.map((tool) => (
-                <label
-                  key={tool}
-                  className="flex items-center gap-2 cursor-pointer group"
-                >
-                  <input
-                    type="checkbox"
-                    checked={tools.includes(tool)}
-                    onChange={() => toggleTool(tool)}
-                    className="sr-only"
-                  />
-                  <span
-                    className={[
-                      'w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors duration-fast',
-                      tools.includes(tool)
-                        ? 'bg-accent border-accent'
-                        : 'bg-surface-2 border-border-2 group-hover:border-border-3',
-                    ].join(' ')}
-                  >
-                    {tools.includes(tool) && (
-                      <span className="text-text-inverse text-[10px] font-bold leading-none">✓</span>
-                    )}
-                  </span>
-                  <span className="text-sm font-mono text-text-secondary">
-                    {tool}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </FieldRow>
+        {/* 2. System Prompt */}
+        <Section title="System Prompt">
+          <Textarea
+            mono
+            value={node.system_prompt}
+            onChange={(e) => patch('system_prompt', e.target.value)}
+            rows={10}
+            placeholder="You are a…"
+          />
+          <p className="text-xs text-text-tertiary">{node.system_prompt.length} chars</p>
         </Section>
 
-        {/* 3. Memory */}
-        <Section title="Memory">
+        {/* 3. Tools */}
+        <Section title="Tools">
           <div className="flex flex-col gap-2">
-            {MEMORY_OPTIONS.map((opt) => (
-              <label
-                key={opt.value}
-                className="flex items-start gap-2 cursor-pointer group"
-              >
+            {AVAILABLE_TOOLS.map((tool) => (
+              <label key={tool} className="flex items-center gap-2 cursor-pointer group">
                 <input
-                  type="radio"
-                  name="memory_type"
-                  value={opt.value}
-                  checked={agent.memory_type === opt.value}
-                  onChange={() => patch('memory_type', opt.value)}
+                  type="checkbox"
+                  checked={node.tools.includes(tool)}
+                  onChange={() => toggleTool(tool)}
                   className="sr-only"
                 />
-                <span
-                  className={[
-                    'w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors duration-fast',
-                    agent.memory_type === opt.value
-                      ? 'border-accent'
-                      : 'border-border-2 group-hover:border-border-3',
-                  ].join(' ')}
-                >
-                  {agent.memory_type === opt.value && (
-                    <span className="w-2 h-2 rounded-full bg-accent block" />
+                <span className={[
+                  'w-4 h-4 rounded-sm border flex items-center justify-center flex-shrink-0 transition-colors duration-fast',
+                  node.tools.includes(tool)
+                    ? 'bg-accent border-accent'
+                    : 'bg-surface-2 border-border-2 group-hover:border-border-3',
+                ].join(' ')}>
+                  {node.tools.includes(tool) && (
+                    <span className="text-text-inverse text-[10px] font-bold leading-none">✓</span>
                   )}
                 </span>
-                <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-sm text-text-primary font-medium">{opt.label}</span>
-                  <span className="text-xs text-text-tertiary">{opt.description}</span>
-                </div>
+                <span className="text-sm font-mono text-text-secondary">{tool}</span>
               </label>
             ))}
           </div>
+          {node.tools.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {node.tools.map((t) => <Badge key={t} variant="default">{t}</Badge>)}
+            </div>
+          )}
         </Section>
 
         {/* 4. Schedule */}
-        <Section title="Schedule">
+        <Section title="Schedule" defaultOpen={false}>
           <FieldRow label="Cron Expression">
             <Input
               mono
-              value={agent.schedule ?? ''}
+              value={node.schedule ?? ''}
               onChange={(e) => patch('schedule', e.target.value || null)}
-              placeholder="0 8 * * 1"
+              placeholder="0 9 * * 1-5  (weekdays 9am)"
             />
           </FieldRow>
-          {cronRuns.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <Label>Next 3 runs</Label>
-              {cronRuns.map((r, i) => (
-                <span key={i} className="text-xs font-mono text-text-tertiary">
-                  {r}
-                </span>
-              ))}
-            </div>
-          )}
-          {agent.schedule && cronRuns.length === 0 && (
-            <p className="text-xs text-error">Invalid cron expression</p>
-          )}
-        </Section>
-
-        {/* 5. Guardrails */}
-        <Section title="Guardrails">
-          <FieldRow label="Token Budget">
-            <Input
-              type="number"
-              value={String(guardrails.max_tokens ?? 5000)}
-              onChange={(e) =>
-                patch('guardrails', { ...guardrails, max_tokens: parseInt(e.target.value, 10) })
-              }
-              min="100"
-              max="200000"
-            />
-          </FieldRow>
-          <FieldRow label="Max Turns">
-            <Input
-              type="number"
-              value={String(guardrails.max_iterations ?? 10)}
-              onChange={(e) =>
-                patch('guardrails', { ...guardrails, max_iterations: parseInt(e.target.value, 10) })
-              }
-              min="1"
-              max="50"
-            />
-          </FieldRow>
-          <FieldRow label="Rate Limit / Minute">
-            <Input
-              type="number"
-              value={String(guardrails.rate_limit_per_minute ?? 10)}
-              onChange={(e) =>
-                patch('guardrails', { ...guardrails, rate_limit_per_minute: parseInt(e.target.value, 10) })
-              }
-              min="1"
-              max="100"
-            />
-          </FieldRow>
-          <FieldRow label="Banned Topics">
-            <Input
-              value={
-                Array.isArray(guardrails.banned_topics)
-                  ? (guardrails.banned_topics as string[]).join(', ')
-                  : ''
-              }
-              onChange={(e) =>
-                patch('guardrails', {
-                  ...guardrails,
-                  banned_topics: e.target.value.split(',').map((s) => s.trim()).filter(Boolean),
-                })
-              }
-              placeholder="politics, religion"
-            />
-            {Array.isArray(guardrails.banned_topics) &&
-              (guardrails.banned_topics as string[]).length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {(guardrails.banned_topics as string[]).map((t) => (
-                    <Badge key={t} variant="error">{t}</Badge>
-                  ))}
-                </div>
-              )}
-          </FieldRow>
+          <p className="text-xs text-text-tertiary">
+            Leave blank for on-demand execution.
+          </p>
         </Section>
 
       </div>

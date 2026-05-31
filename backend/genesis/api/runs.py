@@ -35,7 +35,10 @@ async def list_runs(
 
 @router.get("/{run_id}", response_model=RunRead)
 async def get_run(run_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> Run:
-    run = await db.get(Run, run_id)
+    from sqlalchemy.orm import selectinload
+    q = select(Run).where(Run.id == run_id).options(selectinload(Run.messages))
+    result = await db.execute(q)
+    run = result.scalar_one_or_none()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
     return run

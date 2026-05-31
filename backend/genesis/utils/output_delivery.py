@@ -33,11 +33,23 @@ def build_output_payload(
     # Extract the most human-readable summary from agent outputs
     summary = _extract_summary(final_output, messages)
 
-    # Structure outputs per agent — each key is an agent node, value is what it produced
+    # Structure outputs per agent — only include node conclusion values, not raw tool results.
+    # Tool results are stored under the tool name (e.g. "web_search", "github_api");
+    # node conclusions are stored under the node_id (e.g. "web_researcher", "data_analyst").
+    # We distinguish them by checking whether the key looks like a tool name.
+    _KNOWN_TOOL_NAMES = {
+        "web_search", "fetch_page", "browser", "http_request", "file_reader",
+        "code_executor", "telegram_send", "slack_send", "email_send",
+        "whatsapp_send", "sms_send", "webhook_send",
+        "github_api", "jira_api", "notion_read", "calendar_read",
+        "sheets_read", "sheets_write", "scheduler",
+    }
     agent_outputs: dict[str, str] = {}
     for k, v in final_output.items():
-        if v and not str(v).startswith("LLM_ERROR"):
-            agent_outputs[k[:80]] = str(v)[:2000]
+        text = str(v).strip()
+        if not text or text.startswith("LLM_ERROR") or k in _KNOWN_TOOL_NAMES:
+            continue
+        agent_outputs[k[:80]] = text[:4000]
 
     duration_seconds = round((completed_at - started_at).total_seconds(), 1)
 
@@ -58,18 +70,30 @@ def build_output_payload(
     }
 
 
-def _extract_summary(final_output: dict[str, Any], messages: list[dict[str, Any]]) -> str:
-    """Best-effort human-readable summary from agent outputs."""
-    # Prefer the last agent_output message
-    for msg in reversed(messages):
-        if msg.get("message_type") == "agent_output" and msg.get("content"):
-            return str(msg["content"])[:500]
+_KNOWN_TOOL_NAMES_SET = {
+    "web_search", "fetch_page", "browser", "http_request", "file_reader",
+    "code_executor", "telegram_send", "slack_send", "email_send",
+    "whatsapp_send", "sms_send", "webhook_send",
+    "github_api", "jira_api", "notion_read", "calendar_read",
+    "sheets_read", "sheets_write", "scheduler",
+}
 
-    # Fall back to last non-empty agent output value
+
+def _extract_summary(final_output: dict[str, Any], messages: list[dict[str, Any]]) -> str:
+    """Best-effort human-readable summary — prefers node conclusions over tool results."""
+    # Prefer the last node conclusion (not a tool name key, not an error)
+    for k, v in reversed(list(final_output.items())):
+        if k in _KNOWN_TOOL_NAMES_SET:
+            continue
+        text = str(v).strip()
+        if text and not text.startswith("ERROR") and not text.startswith("LLM_ERROR"):
+            return text[:1000]
+
+    # Fall back to any non-empty value
     for v in reversed(list(final_output.values())):
         text = str(v).strip()
         if text and not text.startswith("ERROR") and not text.startswith("LLM_ERROR"):
-            return text[:500]
+            return text[:1000]
 
     return "Agent run completed."
 

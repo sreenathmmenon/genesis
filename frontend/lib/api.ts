@@ -53,10 +53,14 @@ export const api = {
     }).then(json),
 
   // ── Runs + Messages ────────────────────────────────────────────────────────
-  getRuns: (workflowId?: string) =>
-    fetch(
-      `${API_BASE}/api/v1/runs${workflowId ? `?workflow_id=${workflowId}` : ''}`
-    ).then(json),
+  getRuns: (params?: { workflowId?: string; offset?: number; limit?: number }) => {
+    const qs = new URLSearchParams()
+    if (params?.workflowId) qs.set('workflow_id', params.workflowId)
+    if (params?.offset != null) qs.set('offset', String(params.offset))
+    if (params?.limit != null) qs.set('limit', String(params.limit))
+    const q = qs.toString()
+    return fetch(`${API_BASE}/api/v1/runs${q ? `?${q}` : ''}`).then(json)
+  },
 
   getRun: (runId: string) =>
     fetch(`${API_BASE}/api/v1/runs/${runId}`).then(json),

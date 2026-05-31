@@ -55,6 +55,15 @@ class Settings(BaseSettings):
     # Google Calendar (JSON blob of OAuth2 credentials)
     google_calendar_credentials_json: str = ""
 
+    # Google Sheets (JSON blob of service account credentials)
+    google_sheets_credentials_json: str = ""
+
+    # Twilio (WhatsApp + SMS)
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_whatsapp_from: str = ""  # e.g. whatsapp:+14155238886
+    twilio_sms_from: str = ""       # e.g. +14155238886
+
     # App
     secret_key: str = "change_this_to_random_32_char_string"
     environment: str = "development"

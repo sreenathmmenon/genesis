@@ -30,7 +30,7 @@ TEMPLATES: list[dict[str, Any]] = [
             "Contract Diff",
             "Risk Assessor",
             "Briefing Agent",
-            "Telegram Gateway",
+            "Report Writer",
         ],
         "graph_json": {
             "nodes": [
@@ -88,16 +88,20 @@ TEMPLATES: list[dict[str, Any]] = [
                     "schedule": None,
                 },
                 {
-                    "id": "telegram_gateway",
+                    "id": "report_writer",
                     "model_name": "claude-sonnet-4-5",
                     "system_prompt": (
-                        "You are Telegram Gateway. Your only job is to send a Telegram message. "
-                        "Your context contains the complete briefing from the previous agents. "
-                        "Read it, format it into a clean message with PR numbers, risk levels, and recommended actions, "
-                        "then call telegram_send immediately. Do not ask for input — the data is already in your context. "
-                        "If no PRs were found, send: 'PR Guardian: No API changes detected in open PRs.'"
+                        "You are Report Writer. Your context contains the complete risk assessment from previous agents. "
+                        "Write a clear PR review report in this format:\n\n"
+                        "## API Change Report\n\n"
+                        "### Summary\n[1-2 sentences: how many PRs found, overall risk level]\n\n"
+                        "### PRs Requiring Review\n"
+                        "For each PR: **PR #[number]: [title]**\nRisk: [HIGH/MEDIUM/LOW]\nChanges: [what changed]\nRecommendation: [approve/request changes/block]\n\n"
+                        "### No-Action PRs\n[list PRs with LOW risk that can be merged]\n\n"
+                        "If no PRs were found, write: 'No API changes detected in open PRs.'\n\n"
+                        "This report is shown directly in the Genesis dashboard — make it readable and actionable."
                     ),
-                    "tools": ["telegram_send"],
+                    "tools": [],
                     "memory_type": "none",
                     "schedule": None,
                 },
@@ -106,7 +110,7 @@ TEMPLATES: list[dict[str, Any]] = [
                 {"source": "pr_watcher", "target": "contract_diff", "condition": "always"},
                 {"source": "contract_diff", "target": "risk_assessor", "condition": "always"},
                 {"source": "risk_assessor", "target": "briefing_agent", "condition": "always"},
-                {"source": "briefing_agent", "target": "telegram_gateway", "condition": "always"},
+                {"source": "briefing_agent", "target": "report_writer", "condition": "always"},
             ],
         },
     },
@@ -267,13 +271,16 @@ TEMPLATES: list[dict[str, Any]] = [
                     "id": "briefing_agent",
                     "model_name": "claude-sonnet-4-5",
                     "system_prompt": (
-                        "You are Briefing Agent. Your only job is to send the competitive intelligence brief via Telegram. "
-                        "Your context contains the prioritized signals from previous agents. "
-                        "Read the context, compose a Monday morning brief (Signal 1/2/3, what it means, suggested action), "
-                        "then call telegram_send immediately. Do not ask for input. "
-                        "Keep the message under 600 characters. Be direct and actionable."
+                        "You are Briefing Agent. Your context contains the prioritized signals from previous agents. "
+                        "Compose a structured Monday morning competitive intelligence brief. "
+                        "Format it as:\n"
+                        "SIGNAL 1: [title]\nWhat it means: [2 sentences]\nAction: [1 concrete action]\n\n"
+                        "SIGNAL 2: ...\nSIGNAL 3: ...\n\n"
+                        "SUMMARY: [1-2 sentences on the most important takeaway this week]\n\n"
+                        "Be direct, specific, and actionable. No filler. "
+                        "This output is displayed directly to the user in their Genesis dashboard."
                     ),
-                    "tools": ["telegram_send"],
+                    "tools": [],
                     "memory_type": "none",
                     "schedule": None,
                 },
@@ -284,6 +291,197 @@ TEMPLATES: list[dict[str, Any]] = [
                 {"source": "reviews_watcher", "target": "pattern_agent", "condition": "always"},
                 {"source": "pattern_agent", "target": "prioritizer", "condition": "always"},
                 {"source": "prioritizer", "target": "briefing_agent", "condition": "always"},
+            ],
+        },
+    },
+    {
+        "name": "market-research",
+        "display_name": "Market Research Assistant",
+        "description": "Give it any topic or company — it researches the market, finds competitors, trends, and key players, then writes a full brief you can read in your dashboard.",
+        "intent": "Research the market for a topic. Find top competitors, current trends, market size, key players, and recent news. Write a structured market brief.",
+        "agent_count": 3,
+        "category": "intelligence",
+        "agents": ["Web Researcher", "Data Analyst", "Report Writer"],
+        "graph_json": {
+            "nodes": [
+                {
+                    "id": "web_researcher",
+                    "model_name": "claude-sonnet-4-5",
+                    "system_prompt": (
+                        "You are Web Researcher. Research the topic given in your input. "
+                        "Use web_search to find: (1) top companies in this space with brief descriptions, "
+                        "(2) current market trends, (3) recent news in the last 3 months, "
+                        "(4) key industry numbers or market size if available. "
+                        "Run 4-5 different searches and compile the raw findings. Include source URLs."
+                    ),
+                    "tools": ["web_search", "fetch_page"],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+                {
+                    "id": "data_analyst",
+                    "model_name": "claude-sonnet-4-5",
+                    "system_prompt": (
+                        "You are Data Analyst. Given raw research findings, extract and structure the key facts: "
+                        "- Top 5 competitors with 1-line description each "
+                        "- 3 most important market trends "
+                        "- Market size or growth rate (if found) "
+                        "- 3 recent notable news events "
+                        "- Key opportunities or risks "
+                        "Be factual. Only include information from the research."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+                {
+                    "id": "report_writer",
+                    "model_name": "claude-sonnet-4-5",
+                    "system_prompt": (
+                        "You are Report Writer. Write a professional market research brief using this format:\n\n"
+                        "## Market Research Brief: [Topic]\n\n"
+                        "### Market Overview\n[2-3 sentences: size, growth, maturity]\n\n"
+                        "### Top Competitors\n[bulleted list: company — what they do — key differentiator]\n\n"
+                        "### Key Trends\n[numbered list: trend — why it matters]\n\n"
+                        "### Recent Developments\n[2-3 news items with dates]\n\n"
+                        "### Opportunities & Risks\n[2 opportunities, 2 risks]\n\n"
+                        "### Bottom Line\n[3-sentence executive summary]\n\n"
+                        "Write for a non-technical business person. No jargon. Clear, actionable."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+            ],
+            "edges": [
+                {"source": "web_researcher", "target": "data_analyst", "condition": "always"},
+                {"source": "data_analyst", "target": "report_writer", "condition": "always"},
+            ],
+        },
+    },
+    {
+        "name": "job-scout",
+        "display_name": "Job Scout",
+        "description": "Searches for jobs matching your role and skills, filters by quality, and gives you a curated ranked list — saves hours of manual searching.",
+        "intent": "Find the best remote software engineer jobs posted recently. Filter for companies with good culture and fair pay. Give me a ranked list with key details and apply links.",
+        "agent_count": 3,
+        "category": "automation",
+        "agents": ["Job Searcher", "Quality Filter", "Rankings Writer"],
+        "graph_json": {
+            "nodes": [
+                {
+                    "id": "job_searcher",
+                    "model_name": "claude-sonnet-4-5",
+                    "system_prompt": (
+                        "You are Job Searcher. Search for job postings using web_search. "
+                        "Search on LinkedIn, Hacker News 'Who is hiring', RemoteOK, and company career pages. "
+                        "Use multiple query variations. Collect 15-20 job postings with: "
+                        "title, company, salary if listed, remote/hybrid/onsite, job URL, and posting date. "
+                        "Focus on jobs posted in the last 14 days."
+                    ),
+                    "tools": ["web_search", "fetch_page"],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+                {
+                    "id": "quality_filter",
+                    "model_name": "claude-sonnet-4-5",
+                    "system_prompt": (
+                        "You are Quality Filter. Evaluate each job posting and score it 1-10 on: "
+                        "role match, company quality, compensation, and remote authenticity. "
+                        "Remove jobs scoring below 6. "
+                        "For each remaining job, write a 1-line reason why it's worth applying."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+                {
+                    "id": "rankings_writer",
+                    "model_name": "claude-sonnet-4-5",
+                    "system_prompt": (
+                        "You are Rankings Writer. Write a curated job report:\n\n"
+                        "## Job Report: [Role]\n\n"
+                        "### Top Picks\n\n"
+                        "**[Company] — [Title]**\n"
+                        "Pay: [salary or 'not listed'] | Remote: [yes/hybrid/no] | Posted: [date]\n"
+                        "Why apply: [1-2 sentences]\nApply: [URL]\n\n"
+                        "[Repeat ranked best-first]\n\n"
+                        "### Summary\n[Total found, how many made cut, best opportunity]\n\n"
+                        "Link directly to application pages."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+            ],
+            "edges": [
+                {"source": "job_searcher", "target": "quality_filter", "condition": "always"},
+                {"source": "quality_filter", "target": "rankings_writer", "condition": "always"},
+            ],
+        },
+    },
+    {
+        "name": "content-research",
+        "display_name": "Content Researcher",
+        "description": "Give it a topic — it finds trending angles, unanswered questions, content gaps, and writes a ready-to-use brief for any writer.",
+        "intent": "Research content ideas for a given topic. Find what people search for, what questions are unanswered, what content exists, and write a brief with 5 article ideas.",
+        "agent_count": 3,
+        "category": "intelligence",
+        "agents": ["Trend Finder", "Gap Analyzer", "Brief Writer"],
+        "graph_json": {
+            "nodes": [
+                {
+                    "id": "trend_finder",
+                    "model_name": "claude-sonnet-4-5",
+                    "system_prompt": (
+                        "You are Trend Finder. Given a content topic, use web_search to find: "
+                        "(1) what people are searching for related to this topic, "
+                        "(2) top 5 existing articles and their angles, "
+                        "(3) recent news that makes this topic timely, "
+                        "(4) questions people ask on Reddit, Quora, forums. "
+                        "Return structured findings with source URLs."
+                    ),
+                    "tools": ["web_search", "fetch_page"],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+                {
+                    "id": "gap_analyzer",
+                    "model_name": "claude-sonnet-4-5",
+                    "system_prompt": (
+                        "You are Gap Analyzer. Given trend research, identify: "
+                        "(1) What existing content misses or gets wrong "
+                        "(2) Questions not well answered "
+                        "(3) Angles and perspectives underrepresented "
+                        "(4) Audience segments not served by current content "
+                        "Be specific — point to actual gaps."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+                {
+                    "id": "brief_writer",
+                    "model_name": "claude-sonnet-4-5",
+                    "system_prompt": (
+                        "You are Brief Writer. Write a content brief with 5 ideas:\n\n"
+                        "## Content Brief: [Topic]\n\n"
+                        "### Why Now\n[1-2 sentences: why this matters right now]\n\n"
+                        "**Idea 1: [Headline]**\nAngle: [unique perspective]\nTarget reader: [who]\n"
+                        "Key points: [3 bullets]\nLength: [word count]\n\n"
+                        "[Repeat for ideas 2-5]\n\n"
+                        "### SEO Angles\n[3 long-tail search phrases to target]\n\n"
+                        "Write like a senior content strategist. Be opinionated and specific."
+                    ),
+                    "tools": [],
+                    "memory_type": "none",
+                    "schedule": None,
+                },
+            ],
+            "edges": [
+                {"source": "trend_finder", "target": "gap_analyzer", "condition": "always"},
+                {"source": "gap_analyzer", "target": "brief_writer", "condition": "always"},
             ],
         },
     },
