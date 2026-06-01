@@ -181,7 +181,7 @@ async def compile_workflow_from_json(
                 context_parts = []
                 for k, v in prior.items():
                     short_key = k[:60] if len(k) > 60 else k
-                    context_parts.append(f"=== Output from {short_key} ===\n{str(v)[:3000]}")
+                    context_parts.append(f"=== Output from {short_key} ===\n{str(v)[:6000]}")
                 context = (
                     "The following is the complete output from all previous agents in this pipeline. "
                     "This is your input — use it directly to complete your task. "
