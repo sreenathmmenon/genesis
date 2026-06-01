@@ -50,7 +50,7 @@ Thumbs.db
 # Alembic
 backend/alembic/versions/*.pyc
 
-# Demo recordings
+# Demo recordings — scratch output is ignored, but the final demo video
+# (demo/genesis_demo.mp4) is committed and linked from the README.
 demo/output/
-demo/*.mp4
 demo/*.webm

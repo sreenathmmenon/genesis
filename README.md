@@ -13,9 +13,21 @@
 
 *No code. No config. No workflow diagrams. Just your intent.*
 
+### 🎥 [Watch the demo video](demo/genesis_demo.mp4)
+
+*A second video showing the live Telegram conversation will be added shortly.*
+
 </div>
 
 ---
+
+## Demo
+
+https://github.com/sreenathmmenon/genesis/raw/main/demo/genesis_demo.mp4
+
+> End-to-end walkthrough — describe an outcome, watch five meta-agents build a
+> LangGraph workflow in ~60 seconds, deploy it, and run a real multi-agent task with
+> live token/cost tracking. *(A live Telegram conversation demo will be added shortly.)*
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
