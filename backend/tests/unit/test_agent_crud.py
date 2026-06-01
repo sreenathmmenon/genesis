@@ -18,7 +18,7 @@ async def test_create_agent_minimal(client: AsyncClient):
     data = resp.json()
     assert data["name"] == "test-agent"
     assert data["role"] == "tester"
-    assert data["model_name"] == "claude-sonnet-4-5"
+    assert data["model_name"] == "claude-sonnet-4-6"
     assert data["memory_type"] == "none"
     assert data["tools"] == []
     assert data["id"] is not None
