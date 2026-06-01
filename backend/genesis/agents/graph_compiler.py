@@ -162,14 +162,44 @@ async def compile_workflow_from_json(
         tool_map = {t.name: t for t in tools}
 
         _is_terminal = bool(tools) and all(t in _TERMINAL_TOOLS for t in tool_names)
+
+        # A node is "conditional" when its prompt describes skipping the
+        # notification under some condition (alert/monitor patterns). For these
+        # we must NOT force a tool call — the agent decides whether to send,
+        # otherwise a scheduled monitor spams a message every single cycle.
+        _sp_lower = sp.lower()
+        _conditional_send = _is_terminal and any(
+            kw in _sp_lower
+            for kw in (
+                "only if",
+                "alert_required",
+                "skip",
+                "do not send",
+                "don't send",
+                "threshold",
+                "if alert",
+                "no alert",
+                "duplicate",
+            )
+        )
+
         system_prompt = sp
         if tools:
-            if _is_terminal:
+            if _is_terminal and not _conditional_send:
                 system_prompt = (
                     sp + f"\n\nIMPORTANT: You have received data from previous agents in your context below. "
                     f"Use it to compose and send your message immediately via {tool_names[0]}. "
                     f"Do NOT ask for more input — all the data you need is in the context. "
                     f"You MUST call {tool_names[0]} now."
+                )
+            elif _is_terminal and _conditional_send:
+                system_prompt = (
+                    sp + f"\n\nIMPORTANT: You have received data from previous agents in your context below — "
+                    f"all the data you need is there; do NOT ask for more input. "
+                    f"Follow your instructions about WHEN to notify: only call {tool_names[0]} if your "
+                    f"conditions for sending are actually met. If they are not met (e.g. no alert is "
+                    f"required, nothing changed, or it would be a duplicate), do NOT call any tool — "
+                    f"just reply with a short plain-text status line instead. Do not send a message every run."
                 )
             else:
                 system_prompt = sp + f"\n\nIMPORTANT: You MUST call one of your available tools to complete this task. Available tools: {tool_names}. Do not just respond with text — you MUST make a tool call."
@@ -221,7 +251,12 @@ async def compile_workflow_from_json(
             messages = [SystemMessage(content=active_system_prompt), HumanMessage(content=context)]
             results: dict[str, Any] = {}
             max_rounds = _max_iterations
-            first_round_lm = enforced_lm.bind_tools(tools, tool_choice="any") if tools else enforced_lm
+            # Force a tool call on the first round EXCEPT for conditional-send
+            # nodes, which must be free to decide not to notify (use "auto").
+            _force_choice = "auto" if _conditional_send else "any"
+            first_round_lm = (
+                enforced_lm.bind_tools(tools, tool_choice=_force_choice) if tools else enforced_lm
+            )
 
             for _round in range(max_rounds):
                 try:
@@ -233,7 +268,7 @@ async def compile_workflow_from_json(
                         model_name,
                         _max_tokens,
                         tools=tools if tools else None,
-                        tool_choice="any" if _is_first else None,
+                        tool_choice=(_force_choice if _is_first else None),
                     )
                     logger.debug("Node [%s] round %d — guardrails: max_tokens=%d max_iterations=%d", node_id, _round, _max_tokens, _max_iterations)
                 except Exception as exc:
