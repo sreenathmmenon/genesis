@@ -364,9 +364,18 @@ async def compile_workflow_from_json(
 
         def _make_router(t: dict[str, str], fb: str):
             def _router(state: WorkflowState) -> str:
+                # Build eval namespace: state dict + all intermediate_results keys flattened
+                intermediate = state.get("intermediate_results") or {}
+                ns: dict = {"state": state, "__builtins__": {}}
+                # Flatten intermediate results one level so conditions like
+                # "review_decision == 'rejected'" work without "state[...]" syntax
+                for node_key, node_val in intermediate.items():
+                    if isinstance(node_val, dict):
+                        ns.update(node_val)
+                    ns[node_key] = node_val
                 for target, condition_expr in t.items():
                     try:
-                        if eval(condition_expr, {"state": state, "__builtins__": {}}):  # noqa: S307
+                        if eval(condition_expr, ns):  # noqa: S307
                             logger.info("Conditional edge: %s → %s (condition matched)", src, target)
                             return target
                     except Exception as exc:
