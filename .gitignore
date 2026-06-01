@@ -22,6 +22,13 @@ node_modules/
 out/
 tsconfig.tsbuildinfo
 
+# Stray root-level Playwright scratch install (real deps live in frontend/)
+/package.json
+/package-lock.json
+
+# Claude Code session dir
+.claude/
+
 # Logs
 *.log
 logs/
