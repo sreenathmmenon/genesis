@@ -17,19 +17,48 @@ logger = get_logger("genesis.tools")
 async def web_search(query: str, max_results: int = 5) -> str:
     """Search the web using DuckDuckGo and return top results with titles, URLs and excerpts."""
     import asyncio
-    try:
-        from duckduckgo_search import DDGS
-        loop = asyncio.get_event_loop()
-        results = await loop.run_in_executor(
-            None, lambda: list(DDGS().text(query, max_results=max_results))
-        )
+
+    from duckduckgo_search import DDGS
+
+    loop = asyncio.get_event_loop()
+
+    # DuckDuckGo rate-limits intermittently from cloud IPs — retry a couple of
+    # times with a short backoff before giving up.
+    results: list = []
+    last_exc: Exception | None = None
+    for attempt in range(3):
+        try:
+            results = await loop.run_in_executor(
+                None, lambda: list(DDGS().text(query, max_results=max_results))
+            )
+            if results:
+                break
+        except Exception as exc:
+            last_exc = exc
+            logger.warning("web_search attempt %d failed: %s", attempt + 1, exc)
+        if attempt < 2:
+            await asyncio.sleep(1.5 * (attempt + 1))
+
+    if results:
         return json.dumps(
             [{"title": r.get("title"), "href": r.get("href"), "body": r.get("body")} for r in results],
             indent=2,
         )
-    except Exception as exc:
-        logger.warning("web_search failed: %s", exc)
-        return json.dumps({"error": str(exc)})
+
+    # No results — return an explicit, unambiguous signal so the agent reports
+    # honestly ("no current data available") instead of fabricating an answer.
+    detail = f" (last error: {last_exc})" if last_exc else ""
+    logger.warning("web_search returned no results for query=%r%s", query, detail)
+    return json.dumps({
+        "results": [],
+        "status": "NO_RESULTS",
+        "instruction": (
+            "The web search returned no results. Do NOT invent, fabricate, or "
+            "recall facts, dates, prices, or articles from memory. Report clearly "
+            "that no current data is available for this query and state that the "
+            "result is based on unavailable live data."
+        ),
+    })
 
 
 # ── fetch_page ─────────────────────────────────────────────────────────────────
