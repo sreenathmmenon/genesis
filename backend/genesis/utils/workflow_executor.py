@@ -164,7 +164,7 @@ async def execute_deployed_workflow(
             "messages": [HumanMessage(content=initial_msg)],
         }
 
-        result = await asyncio.wait_for(compiled.ainvoke(initial), timeout=300.0)
+        result = await asyncio.wait_for(compiled.ainvoke(initial), timeout=600.0)
         final_output = result.get("intermediate_results", {})
         logger.info(
             "Workflow %s run %s — nodes executed: %s",
