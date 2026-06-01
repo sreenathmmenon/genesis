@@ -25,6 +25,27 @@ def _intent_key(chat_id: int) -> str:
     return f"genesis:tg:pending_intent:{chat_id}"
 
 
+def _chunk_message(text: str, limit: int = 4000) -> list[str]:
+    """Split a long message into Telegram-sized chunks, preferring paragraph
+    then line boundaries so answers don't break mid-sentence."""
+    if len(text) <= limit:
+        return [text]
+    chunks: list[str] = []
+    remaining = text
+    while len(remaining) > limit:
+        window = remaining[:limit]
+        split = window.rfind("\n\n")
+        if split < limit // 2:
+            split = window.rfind("\n")
+        if split < limit // 2:
+            split = limit
+        chunks.append(remaining[:split].rstrip())
+        remaining = remaining[split:].lstrip()
+    if remaining:
+        chunks.append(remaining)
+    return chunks
+
+
 class TelegramBridge(ChannelBridge):
     def __init__(self) -> None:
         self._app: Application | None = None
@@ -177,7 +198,10 @@ class TelegramBridge(ChannelBridge):
 
         pending = await self._get_pending_intent(chat_id)
 
-        # ── State: waiting for confirmation on a pending intent ────────────────
+        # ── State: waiting for confirmation on a pending AUTOMATE intent ───────
+        # Only AUTOMATE (deploy-a-workflow) requests reach the yes/no/refine
+        # confirmation gate. Other lanes answer immediately and never set
+        # pending state.
         if pending:
             normalized = text.lower().strip()
 
@@ -207,33 +231,85 @@ class TelegramBridge(ChannelBridge):
                 )
                 return
 
-            # Anything else = refined intent
-            # Plain text — user-supplied intent can contain Markdown-breaking chars.
-            await self._set_pending_intent(chat_id, text)
-            await update.message.reply_text(
-                "Updated:\n\n"
-                f"{text}\n\n"
-                "Reply 'yes' to confirm and start building, 'no' to discard, "
-                "or continue refining.",
-            )
+            # Anything else = refined intent — re-route it from scratch.
+            await self._clear_pending_intent(chat_id)
+            await self._route_new_intent(update, chat_id, text)
             return
 
-        # ── State: no pending intent — treat as new intent ────────────────────
+        # ── State: no pending intent — classify and route ─────────────────────
         if len(text) < 5:
             await update.message.reply_text(
-                "Describe the workflow you want to automate and Genesis will build it.\n\n"
+                "Tell me what you'd like — I can answer something one-off, look "
+                "up current info, or set up an agent that runs on a schedule.\n\n"
                 "Type /start for examples and commands.",
             )
             return
 
-        # Plain text — user-supplied intent can contain Markdown-breaking chars.
-        await self._set_pending_intent(chat_id, text)
-        await update.message.reply_text(
-            "Here's what Genesis will build:\n\n"
-            f"{text}\n\n"
-            "Reply 'yes' to confirm and start building, 'no' to discard, "
-            "or send a revised description.",
-        )
+        await self._route_new_intent(update, chat_id, text)
+
+    async def _route_new_intent(self, update: Update, chat_id: int, text: str) -> None:
+        """Classify an intent and dispatch it to the correct execution lane."""
+        from genesis.agents.router import router_agent
+
+        try:
+            decision = await router_agent.classify(text)
+        except Exception as exc:  # noqa: BLE001 — never let routing crash the bot
+            logger.error("Router crashed, defaulting to AUTOMATE confirm flow: %s", exc)
+            decision = {"lane": "AUTOMATE", "reasoning": "", "params": {}}
+
+        lane = decision.get("lane", "AUTOMATE")
+        logger.info("Routed intent to %s (conf=%.2f): %s", lane, decision.get("confidence", 0), text[:60])
+
+        if lane == "AUTOMATE":
+            # Recurring/scheduled work → confirm, then run the build pipeline.
+            await self._set_pending_intent(chat_id, text)
+            await update.message.reply_text(
+                "This looks like something to run on a schedule, so I'll build a "
+                "workflow for it.\n\n"
+                "Here's what Genesis will build:\n\n"
+                f"{text}\n\n"
+                "Reply 'yes' to confirm and start building, 'no' to discard, "
+                "or send a revised description.",
+            )
+            return
+
+        if lane == "CLARIFY":
+            question = decision.get("params", {}).get("suggested_clarifying_question") or (
+                "Could you tell me a bit more about what you'd like me to do?"
+            )
+            await update.message.reply_text(question)
+            return
+
+        if lane == "RETRIEVE":
+            # Live retrieval is not yet a dedicated lane — answer one-shot for now,
+            # which already refuses to fabricate when it has no real data.
+            await update.message.reply_text("Looking into that now…")
+            await self._answer_oneshot(update, text)
+            return
+
+        if lane == "CONVERSE":
+            # Conversational lane not yet built — answer directly for now.
+            await self._answer_oneshot(update, text)
+            return
+
+        # Default: ANSWER — one-shot, answered immediately, nothing deployed.
+        await update.message.reply_text("On it…")
+        await self._answer_oneshot(update, text)
+
+    async def _answer_oneshot(self, update: Update, text: str) -> None:
+        """Run an ANSWER-lane request and reply with the result in chat."""
+        from genesis.agents.oneshot import run_oneshot
+
+        try:
+            result = await run_oneshot(text)
+            answer = result.get("answer", "").strip() or "I couldn't produce an answer for that."
+        except Exception as exc:  # noqa: BLE001
+            logger.error("One-shot answer failed: %s", exc)
+            answer = "I hit a temporary issue answering that. Please try again."
+
+        # Plain text — model output can contain Markdown-breaking characters.
+        for chunk in _chunk_message(answer):
+            await update.message.reply_text(chunk)
 
     # ── Callback / inline button handlers ─────────────────────────────────────
 

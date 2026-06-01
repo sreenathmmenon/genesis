@@ -87,6 +87,24 @@ async def _run_build_pipeline(build_id: str, intent: str) -> None:
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
 
+@router.post("/classify", response_model=dict)
+async def classify_intent(body: IntentRequest) -> dict[str, Any]:
+    """Classify an intent into an execution lane without executing anything.
+
+    Powers the 'Genesis understands the shape of your request' step — the UI can
+    show the detected lane and reasoning before the user commits to a build.
+    """
+    from genesis.agents.router import router_agent
+
+    decision = await router_agent.classify(body.intent)
+    await audit("intent.classified", "intent", None, detail={
+        "intent": body.intent[:200],
+        "lane": decision.get("lane"),
+        "confidence": decision.get("confidence"),
+    })
+    return decision
+
+
 @router.post("/build", response_model=dict, status_code=202)
 async def start_build(
     body: IntentRequest,
