@@ -208,13 +208,13 @@ class TelegramBridge(ChannelBridge):
                 return
 
             # Anything else = refined intent
+            # Plain text — user-supplied intent can contain Markdown-breaking chars.
             await self._set_pending_intent(chat_id, text)
             await update.message.reply_text(
-                "*Updated:*\n\n"
+                "Updated:\n\n"
                 f"{text}\n\n"
-                "Reply *yes* to confirm and start building, *no* to discard, "
+                "Reply 'yes' to confirm and start building, 'no' to discard, "
                 "or continue refining.",
-                parse_mode="Markdown",
             )
             return
 
@@ -226,13 +226,13 @@ class TelegramBridge(ChannelBridge):
             )
             return
 
+        # Plain text — user-supplied intent can contain Markdown-breaking chars.
         await self._set_pending_intent(chat_id, text)
         await update.message.reply_text(
-            "*Here's what Genesis will build:*\n\n"
+            "Here's what Genesis will build:\n\n"
             f"{text}\n\n"
-            "Reply *yes* to confirm and start building, *no* to discard, "
+            "Reply 'yes' to confirm and start building, 'no' to discard, "
             "or send a revised description.",
-            parse_mode="Markdown",
         )
 
     # ── Callback / inline button handlers ─────────────────────────────────────
@@ -316,10 +316,11 @@ class TelegramBridge(ChannelBridge):
                 f"\n\nSchedule: runs automatically ({schedule_expr})" if schedule_expr
                 else "\n\nThe workflow is ready to run on demand from your dashboard."
             )
+            # Plain text — workflow names, cron expressions ("* * *"), and URLs
+            # contain characters that break Telegram Markdown parsing.
             await query.edit_message_text(
-                f"*{wf_name}* is deployed and live.{schedule_note}\n\n"
+                f"{wf_name} is deployed and live.{schedule_note}\n\n"
                 f"Manage it at {settings.frontend_url}",
-                parse_mode="Markdown",
             )
             logger.info("Telegram deploy succeeded: build_id=%s workflow_id=%s", build_id, workflow_id)
         except Exception as exc:

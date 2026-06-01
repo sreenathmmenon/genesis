@@ -36,17 +36,26 @@ def _is_credit_error(exc: Exception) -> bool:
     return any(phrase in msg for phrase in _CREDIT_ERRORS)
 
 
+# Models that reject the `temperature` parameter entirely (it is deprecated for
+# them server-side). For these we must omit the field rather than send a default.
+_NO_TEMPERATURE_MODELS = {
+    "claude-opus-4-7",
+}
+
+
 def get_llm(model_name: str, temperature: float = 0.1, max_tokens: int = 8096) -> BaseChatModel:
     if model_name not in ALLOWED_MODELS:
         raise ValueError(f"Model '{model_name}' is not in the allowed list: {ALLOWED_MODELS}")
 
     if model_name.startswith("claude-"):
-        return ChatAnthropic(
-            model=model_name,
-            temperature=temperature,
-            anthropic_api_key=settings.anthropic_api_key,
-            max_tokens=max_tokens,
-        )
+        kwargs: dict = {
+            "model": model_name,
+            "anthropic_api_key": settings.anthropic_api_key,
+            "max_tokens": max_tokens,
+        }
+        if model_name not in _NO_TEMPERATURE_MODELS:
+            kwargs["temperature"] = temperature
+        return ChatAnthropic(**kwargs)
 
     if model_name.startswith(("gpt-", "o1-")):
         return ChatOpenAI(
