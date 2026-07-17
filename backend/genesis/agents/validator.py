@@ -109,6 +109,15 @@ class ValidatorAgent(GenesisAgent):
             "awaiting_approval",
             {"validator_report": report},
         )
+        # Emit an explicit terminal status event so subscribers (the web canvas)
+        # flip to the "awaiting approval / ready to deploy" state. The event
+        # above carries status="validator_done"; clients key their build state
+        # off `status`, so without this they never learn the build is ready.
+        await self._publish_build_progress(
+            build_id,
+            "awaiting_approval",
+            "Build ready for deployment",
+        )
 
         return {
             "validator_report": report,
