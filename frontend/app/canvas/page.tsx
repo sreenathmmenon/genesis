@@ -251,7 +251,11 @@ function CanvasPageInner() {
     loadWorkflow(workflowId)
   }, [workflowId, loadWorkflow])
 
-  // Auto-load most recent workflow when no workflow_id in URL
+  // When landing on /canvas with no workflow_id, load the most recent workflow
+  // as a *preview only* — so the canvas isn't empty — but keep the build panel
+  // front-and-center and DON'T rewrite the URL. That way a first-time visitor
+  // always sees "Build an agent" as the primary action instead of mistaking a
+  // pre-existing graph for their own workflow.
   useEffect(() => {
     if (workflowId) return
     api.getWorkflows().then((wfs) => {
@@ -262,7 +266,8 @@ function CanvasPageInner() {
       if (wf) {
         setAutoLoadedId(wf.id)
         loadWorkflow(wf.id)
-        router.replace(`/canvas?workflow_id=${wf.id}`)
+        // Intentionally NOT calling router.replace — the URL stays clean at
+        // /canvas so the build panel remains the primary experience.
       }
     }).catch(console.error)
   }, [])  // eslint-disable-line react-hooks/exhaustive-deps
@@ -293,10 +298,13 @@ function CanvasPageInner() {
       {/* Three-panel body — uses layout-body + layout-left + layout-center + layout-right */}
       <div className="layout-body">
 
-        {/* Left: 280px, agent config or inline build prompt */}
+        {/* Left: 280px — show the build prompt as the primary action whenever
+            the user hasn't explicitly opened a workflow via URL. A preview
+            graph may still be auto-loaded on the canvas, but "Build an agent"
+            stays front-and-center so new visitors always know where to start. */}
         <aside className="layout-left">
-          {!workflowId && !workflow && !autoLoadedId ? (
-            <InlineIntentPanel onSubmitted={() => setWorkflow(null)} />
+          {!workflowId ? (
+            <InlineIntentPanel onSubmitted={() => { setWorkflow(null); setAutoLoadedId(null) }} />
           ) : (
             <AgentConfigPanel workflow={workflow} />
           )}
@@ -304,6 +312,24 @@ function CanvasPageInner() {
 
         {/* Center: flex-1, ReactFlow canvas */}
         <main className="layout-center" style={{ display: 'flex', flexDirection: 'column' }}>
+          {/* Example banner — shown only when a preview graph is auto-loaded
+              (no explicit workflow_id). Makes clear the graph isn't the user's. */}
+          {!workflowId && autoLoadedId && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '8px 16px', background: '#F8FAFD',
+              borderBottom: '1px solid #EEF0F4', flexShrink: 0,
+            }}>
+              <span style={{
+                fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
+                color: '#16A34A', background: '#F0FDF4', border: '1px solid #BBF7D0',
+                borderRadius: 5, padding: '2px 7px',
+              }}>Example</span>
+              <span style={{ fontSize: 12, color: '#64748B' }}>
+                This is a sample workflow. Describe your own task on the left to build a new agent.
+              </span>
+            </div>
+          )}
           <div style={{ flex: 1, overflow: 'hidden', minHeight: 0, height: '100%' }}>
             <GenesisCanvas />
           </div>
