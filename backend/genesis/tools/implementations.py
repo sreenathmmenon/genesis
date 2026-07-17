@@ -13,6 +13,45 @@ logger = get_logger("genesis.tools")
 
 # ── web_search ─────────────────────────────────────────────────────────────────
 
+async def _ddg_html_search(query: str, max_results: int) -> list[dict]:
+    """Fallback search via DuckDuckGo's HTML endpoint, parsed with BeautifulSoup.
+
+    The `ddgs`/`duckduckgo_search` library periodically breaks when DuckDuckGo
+    changes their JSON API and starts returning empty or off-topic spam results.
+    This HTML endpoint is more stable and returns real organic results.
+    """
+    import httpx
+    from bs4 import BeautifulSoup
+
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        )
+    }
+    async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+        resp = await client.post(
+            "https://html.duckduckgo.com/html/", data={"q": query}, headers=headers
+        )
+    resp.raise_for_status()
+    soup = BeautifulSoup(resp.text, "html.parser")
+
+    out: list[dict] = []
+    for block in soup.select(".result__body") or soup.select("div.result"):
+        link = block.select_one("a.result__a")
+        if not link:
+            continue
+        snippet = block.select_one(".result__snippet")
+        out.append({
+            "title": link.get_text(strip=True),
+            "href": link.get("href"),
+            "body": snippet.get_text(strip=True) if snippet else "",
+        })
+        if len(out) >= max_results:
+            break
+    return out
+
+
 @tool
 async def web_search(query: str, max_results: int = 5) -> str:
     """Search the web using DuckDuckGo and return top results with titles, URLs and excerpts."""
@@ -38,6 +77,17 @@ async def web_search(query: str, max_results: int = 5) -> str:
             logger.warning("web_search attempt %d failed: %s", attempt + 1, exc)
         if attempt < 2:
             await asyncio.sleep(1.5 * (attempt + 1))
+
+    # The library often returns [] (or off-topic spam) even without raising.
+    # Fall back to the more stable HTML endpoint before giving up.
+    if not results:
+        try:
+            results = await _ddg_html_search(query, max_results)
+            if results:
+                logger.info("web_search: HTML-endpoint fallback returned %d results for %r", len(results), query)
+        except Exception as exc:
+            last_exc = exc
+            logger.warning("web_search HTML fallback failed: %s", exc)
 
     if results:
         return json.dumps(
